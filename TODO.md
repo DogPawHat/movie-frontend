@@ -1,7 +1,7 @@
 - [x] Cloned Tanstack Start starter example
 - [x] pnpm installed
-- [ ] upload to github
-- [ ] deployed to netilfy
+- [x] upload to github
+- [x] deployed to netilfy
 - [ ] clean up project routes to bare "hello world state"
 - [ ] clean up dependencies that I don't need
 - [ ] intergrate apollo client
