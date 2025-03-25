@@ -1,0 +1,8 @@
+- [x] Cloned Tanstack Start starter example
+- [x] pnpm installed
+- [ ] upload to github
+- [ ] deployed to netilfy
+- [ ] clean up project routes to bare "hello world state"
+- [ ] clean up dependencies that I don't need
+- [ ] intergrate apollo client
+- [ ] plan graphql queries
