@@ -5,7 +5,7 @@
 - [x] clean up project routes to bare "hello world state"
 - [x] clean up dependencies that I don't need
 - [x] intergrate shadcn and tailwind
-- [ ] intergrate apollo client
+- [x] intergrate apollo client
 - [ ] plan graphql queries
 - [ ] Optional: non-dark mode
 
