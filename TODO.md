@@ -2,7 +2,7 @@
 - [x] pnpm installed
 - [x] upload to github
 - [x] deployed to netilfy
-- [ ] clean up project routes to bare "hello world state"
+- [x] clean up project routes to bare "hello world state"
 - [ ] clean up dependencies that I don't need
 - [ ] intergrate shadcn and tailwind
 - [ ] intergrate apollo client
