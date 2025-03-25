@@ -4,7 +4,7 @@
 - [x] deployed to netilfy
 - [x] clean up project routes to bare "hello world state"
 - [x] clean up dependencies that I don't need
-- [ ] intergrate shadcn and tailwind
+- [x] intergrate shadcn and tailwind
 - [ ] intergrate apollo client
 - [ ] plan graphql queries
 - [ ] Optional: non-dark mode
