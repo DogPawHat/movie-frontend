@@ -8,3 +8,13 @@
 - [ ] intergrate apollo client
 - [ ] plan graphql queries
 - [ ] Optional: non-dark mode
+
+## Requirements:
+
+As a user,
+
+- [ ] I can search for movies and see a paginated list of results
+- [ ] I can filter search results by genre
+- [ ] I can navigate through the next and previous pages of the paginated results
+- [ ] I see the total count of search results
+- [ ] I see notable information for each search result, such as the summary, poster, duration, rating, etc.
