@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   server: {
     preset: "netlify",
+    compatibilityDate: "2025-03-25",
   },
   tsr: {
     appDirectory: "src",
@@ -14,10 +15,6 @@ export default defineConfig({
       tsConfigPaths({
         projects: ["./tsconfig.json"],
       }),
-      // Type mismatch between tailwindcss and vite under vinxi
-      // Tanstack Start plans to remove vinxi as a dependency in the future
-      // so this can be ported to vite where this works
-      // @ts-expect-error
       tailwindcss(),
     ],
   },

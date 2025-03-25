@@ -7,12 +7,7 @@ import { getRouterManifest } from "@tanstack/react-start/router-manifest";
 
 import { createRouter } from "./router";
 
-const handler = await (async () => {
-  const router = await createRouter();
-  return createStartHandler({
-    createRouter: () => router,
-    getRouterManifest,
-  })(defaultStreamHandler);
-})();
-
-export default handler;
+export default createStartHandler({
+  createRouter,
+  getRouterManifest,
+})(defaultStreamHandler);

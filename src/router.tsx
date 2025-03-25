@@ -50,13 +50,24 @@ const getAuthToken = createServerFn({ method: "GET" }).handler(async () => {
   return maybeToken;
 });
 
-export async function createRouter() {
-  const token = await getAuthToken();
+export function createRouter() {
+  const tokenPromise = getAuthToken();
+
+  // can't make createRouter async as my build complains about not having top level await
+  // hence the custom fetch
+  const customFetch = (async (uri, options) => {
+    const token = await tokenPromise;
+    return fetch(uri, {
+      ...options,
+      headers: { ...options?.headers, Authorization: "Bearer " + token },
+    });
+  }) satisfies typeof fetch;
+
   const apolloClient = new ApolloClient({
     cache: new InMemoryCache(),
     link: new HttpLink({
       uri: env.VITE_PUBLIC_API_URL + "/graphql",
-      headers: { Authorization: "Bearer " + token },
+      fetch: customFetch,
     }),
   });
   const router = createTanStackRouter({
