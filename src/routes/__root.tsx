@@ -1,9 +1,11 @@
+import { type ApolloClientRouterContext } from "@apollo/client-integration-tanstack-start";
 import {
   HeadContent,
   Link,
   Outlet,
   Scripts,
   createRootRoute,
+  createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import * as React from "react";
@@ -11,7 +13,7 @@ import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { NotFound } from "~/components/not-found";
 import appCss from "~/styles/app.css?url";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<ApolloClientRouterContext>()({
   head: () => ({
     meta: [
       {

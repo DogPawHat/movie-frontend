@@ -25,3 +25,4 @@ yarn.lock
 .netlify
 
 schema-secret.graphql
+.env.local
