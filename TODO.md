@@ -1,4 +1,4 @@
-- [x] Cloned Tanstack Start starter example
+- [x] Cloned Tanstack Start starter example (`npx degit https://github.com/tanstack/router/examples/react/start-basic movie-frontend`)
 - [x] pnpm installed
 - [x] upload to github
 - [x] deployed to netilfy
