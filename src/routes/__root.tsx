@@ -7,8 +7,8 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import * as React from "react";
-import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
-import { NotFound } from "~/components/NotFound";
+import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
+import { NotFound } from "~/components/not-found";
 import appCss from "~/styles/app.css?url";
 
 export const Route = createRootRoute({
@@ -70,11 +70,11 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html className="dark">
+    <html>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="dark">
         <div className="p-2 flex gap-2 text-lg">
           <Link
             to="/"
