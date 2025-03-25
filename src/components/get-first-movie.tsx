@@ -1,12 +1,10 @@
-import { useQuery } from "@apollo/client/index.js";
+import { useReadQuery } from "@apollo/client/index.js";
 import { GET_FIRST_MOVIE } from "~/graphql/queries/get-first-movie";
+import { Route } from "~/routes/index";
 
 export function GetFirstMovie() {
-  const { data } = useQuery(GET_FIRST_MOVIE, {
-    variables: {
-      movieId: "7GQMaTpw7B0MInjOHis5yu",
-    },
-  });
+  const { movieQueryRef } = Route.useLoaderData();
+  const { data } = useReadQuery(movieQueryRef);
 
   return <div>{data?.movie?.title}</div>;
 }
