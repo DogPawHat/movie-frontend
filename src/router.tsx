@@ -50,12 +50,12 @@ const getAuthToken = createServerFn({ method: "GET" }).handler(async () => {
   return maybeToken;
 });
 
-export function createRouter() {
-  const token = getAuthToken();
+export async function createRouter() {
+  const token = await getAuthToken();
   const apolloClient = new ApolloClient({
     cache: new InMemoryCache(),
     link: new HttpLink({
-      uri: env.VITE_PUBLIC_API_URL,
+      uri: env.VITE_PUBLIC_API_URL + "/graphql",
       headers: { Authorization: "Bearer " + token },
     }),
   });
