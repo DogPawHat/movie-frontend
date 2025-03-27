@@ -1,10 +1,10 @@
-import { Suspense, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { Search } from "lucide-react";
 import * as v from "valibot";
-import { graphql, type ResultOf, type VariablesOf } from "gql.tada";
+import { graphql } from "gql.tada";
 import {
-  QueryClient,
   queryOptions,
+  useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -17,6 +17,7 @@ import {
   type Updater,
 } from "@tanstack/react-table";
 
+import { useForm } from "@tanstack/react-form";
 import { Input } from "~/components/ui/input";
 import {
   Table,
@@ -27,14 +28,20 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 const PER_PAGE = 10;
 
 const GET_MOVIES_SEARCH = graphql(
   `
-    query GetMoviesSearch($search: String!, $page: Int! = 0) {
+    query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
       movies(
-        where: { search: $search }
+        where: { search: $search, genre: $genre }
         pagination: { perPage: 10, page: $page }
       ) {
         nodes {
@@ -55,7 +62,7 @@ const GET_MOVIES_SEARCH = graphql(
 
 const GET_GENRES = graphql(`
   query GetGenres {
-    genres {
+    genres(pagination: { perPage: 100 }) {
       nodes {
         id
         title
@@ -63,6 +70,8 @@ const GET_GENRES = graphql(`
     }
   }
 `);
+
+type MovieQueryKey = [string, { query: string; page: number }];
 
 const columnHelper = createColumnHelper<{
   id: string | null;
@@ -97,134 +106,193 @@ const columns = [
 
 const queryParamsSchema = v.object({
   query: v.optional(v.string(), ""),
+  genre: v.optional(v.string(), ""),
   page: v.optional(v.number(), 0),
 });
 
 export const Route = createFileRoute("/")({
-  beforeLoad: ({ context: { graphqlClient }, search }) => {
-    const movieFetchOptions = {
-      queryKey: ["movies", { query: search.query, page: search.page }],
-      queryFn: () =>
-        graphqlClient.request({
-          document: GET_MOVIES_SEARCH,
-          variables: {
-            search: search.query,
-            page: search.page,
-          },
-        }),
-    };
-
-    const genreFetchOptions = queryOptions({
-      queryKey: ["genres"],
-      queryFn: () => graphqlClient.request(GET_GENRES),
-    });
-
-    return { movieFetchOptions, genreFetchOptions };
-  },
   validateSearch: queryParamsSchema,
+  loaderDeps: ({ search }) => ({
+    query: search.query,
+    page: search.page,
+    genre: search.genre,
+  }),
+  context: ({ context: { graphqlClient } }) => {
+    const getMovieFetchOptions = (variables: {
+      query: string;
+      genre: string;
+      page: number;
+    }) =>
+      queryOptions({
+        queryKey: ["movies", variables],
+        queryFn: () =>
+          graphqlClient.request({
+            document: GET_MOVIES_SEARCH,
+            variables: {
+              search: variables.query,
+              genreId: variables.genre || undefined,
+              page: variables.page,
+            },
+          }),
+      });
+
+    const getGenreFetchOptions = () =>
+      queryOptions({
+        queryKey: ["genres"],
+        queryFn: () => graphqlClient.request(GET_GENRES),
+      });
+
+    return { queryOptions: { getMovieFetchOptions, getGenreFetchOptions } };
+  },
   loader: async ({
-    context: { movieFetchOptions, genreFetchOptions, queryClient },
+    context: {
+      queryOptions: { getMovieFetchOptions, getGenreFetchOptions },
+      queryClient,
+    },
+    deps: { query, page, genre },
   }) => {
-    queryClient.prefetchQuery(movieFetchOptions);
-    await queryClient.ensureQueryData(genreFetchOptions);
+    queryClient.prefetchQuery(getMovieFetchOptions({ query, page, genre }));
+    await queryClient.ensureQueryData(getGenreFetchOptions());
   },
   component: Movies,
 });
 
 function MovieSearchBar() {
-  const { query } = Route.useSearch();
+  const { query, genre } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const {
+    queryOptions: { getGenreFetchOptions },
+  } = Route.useRouteContext();
 
-  const handleSearch = (searchTerm: string) => {
-    navigate({ search: { query: searchTerm, page: 0 } });
+  const { data: genreData } = useQuery(getGenreFetchOptions());
+  const genres = genreData?.genres?.nodes || [];
+
+  const updateFilters = (data: { query: string; genre: string }) => {
+    navigate({ search: { query: data.query, genre: data.genre, page: 0 } });
   };
 
-  const handleReset = () => {
-    navigate({ search: { query: "", page: 0 } });
+  const resetFilters = () => {
+    navigate({ search: { query: "", genre: "", page: 0 } });
   };
 
   return (
     <BaseMovieSearchBar
-      key={query}
-      query={query}
-      updateQuery={handleSearch}
-      resetQuery={handleReset}
+      key={`${query}-${genre}`}
+      filters={{ query, genre }}
+      genres={genres.map((genre) => ({
+        id: genre.id || "",
+        title: genre.title || "",
+      }))}
+      updateFilters={updateFilters}
+      resetFilters={resetFilters}
     />
   );
 }
 
-function BaseMovieSearchBar(props: {
-  query: string;
-  updateQuery: (query: string) => void;
-  resetQuery: () => void;
-}) {
-  const [searchTerm, setSearchTerm] = useState(props.query);
+const formSchema = v.object({
+  query: v.string(),
+  genre: v.string(),
+});
 
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    props.updateQuery(searchTerm);
-  };
+function BaseMovieSearchBar(props: {
+  filters: { query: string; genre: string };
+  genres: Array<{ id: string; title: string }>;
+  updateFilters: (data: { query: string; genre: string }) => void;
+  resetFilters: () => void;
+}) {
+  const form = useForm({
+    validators: {
+      onChange: formSchema,
+    },
+    defaultValues: props.filters,
+    onSubmit: (data) => {
+      props.updateFilters(data.value);
+    },
+  });
 
   const handleReset = () => {
-    props.resetQuery();
+    props.resetFilters();
   };
 
   return (
-    <form onSubmit={handleSearch} className="flex gap-2 mb-8 max-w-md mx-auto">
-      <Input
-        type="text"
-        placeholder="Search for movies..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="flex-1"
-      />
-      <Button type="submit">
-        <Search className="h-4 w-4 mr-2" />
-        Search
-      </Button>
-      <Button
-        variant="outline"
-        onClick={handleReset}
-        disabled={!searchTerm && !props.query}
-      >
-        Reset
-      </Button>
+    <form
+      onSubmit={form.handleSubmit}
+      className="flex flex-col gap-4 mb-8 max-w-md mx-auto"
+    >
+      <div className="flex gap-2">
+        <form.Field name="query">
+          {(field) => (
+            <Input
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="Search for movies..."
+              className="flex-1"
+            />
+          )}
+        </form.Field>
+        <form.Field name="genre">
+          {(field) => (
+            <Select
+              value={field.state.value}
+              onValueChange={(value) => field.handleChange(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a genre" />
+              </SelectTrigger>
+              <SelectContent>
+                {props.genres.map((genre) => (
+                  <SelectItem key={genre.id} value={genre.id}>
+                    {genre.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </form.Field>
+
+        <Button type="submit">
+          <Search className="h-4 w-4 mr-2" />
+          Search
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleReset}
+          disabled={!props.filters.query && !props.filters.genre}
+        >
+          Reset
+        </Button>
+      </div>
     </form>
   );
 }
 
-function MoviesTable() {
-  const navigate = Route.useNavigate();
-  const { query, page } = Route.useSearch();
-  const { movieFetchOptions, genreFetchOptions } = Route.useRouteContext();
-  console.log(genreFetchOptions);
-  const { data } = useSuspenseQuery(movieFetchOptions);
-
-  const movies = data.movies?.nodes ?? [];
-
-  const pagination = {
-    pageIndex: page,
-    pageSize: PER_PAGE,
-  } satisfies PaginationState;
-
-  const handlePageChange = (updater: Updater<PaginationState>) => {
-    const newPagination =
-      typeof updater === "function" ? updater(pagination) : updater;
-
-    if (newPagination.pageIndex !== pagination.pageIndex) {
-      navigate({ search: { query, page: newPagination.pageIndex } });
-    }
-  };
-
+function BasicMoviesTable({
+  movies,
+  pagination,
+  pageCount,
+  onPaginationChange,
+}: {
+  movies: Array<{
+    id: string | null;
+    title: string | null;
+    datePublished: string | null;
+    posterUrl: string | null;
+  }>;
+  pagination: PaginationState;
+  pageCount: number;
+  onPaginationChange: (updater: Updater<PaginationState>) => void;
+}) {
   const table = useReactTable({
     data: movies,
-    pageCount: data.movies?.pagination?.totalPages ?? -1,
+    pageCount,
     columns,
     getCoreRowModel: getCoreRowModel(),
     state: {
       pagination,
     },
-    onPaginationChange: handlePageChange,
+    onPaginationChange,
     manualPagination: true,
   });
 
@@ -268,7 +336,8 @@ function MoviesTable() {
                 ← Previous
               </Button>
               <span className="text-sm text-muted-foreground">
-                Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}
+                Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}{" "}
+                (approx. {(pageCount * PER_PAGE).toLocaleString()} results)
               </span>
               <Button
                 variant="outline"
@@ -283,6 +352,42 @@ function MoviesTable() {
         </tr>
       </tfoot>
     </Table>
+  );
+}
+
+function MoviesTable() {
+  const navigate = Route.useNavigate();
+  const { query, genre, page } = Route.useSearch();
+  const {
+    queryOptions: { getMovieFetchOptions },
+  } = Route.useRouteContext();
+
+  const { data } = useSuspenseQuery(
+    getMovieFetchOptions({ query, genre: genre || "", page })
+  );
+  const movies = useMemo(() => data.movies?.nodes ?? [], [data.movies]);
+
+  const pagination = {
+    pageIndex: page,
+    pageSize: PER_PAGE,
+  } satisfies PaginationState;
+
+  const handlePageChange = (updater: Updater<PaginationState>) => {
+    const newPagination =
+      typeof updater === "function" ? updater(pagination) : updater;
+
+    if (newPagination.pageIndex !== pagination.pageIndex) {
+      navigate({ search: { query, genre, page: newPagination.pageIndex } });
+    }
+  };
+
+  return (
+    <BasicMoviesTable
+      movies={movies}
+      pagination={pagination}
+      pageCount={data.movies?.pagination?.totalPages ?? -1}
+      onPaginationChange={handlePageChange}
+    />
   );
 }
 
