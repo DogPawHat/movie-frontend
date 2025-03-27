@@ -56,6 +56,7 @@ export function createRouter() {
       ...request,
       headers: {
         ...request.headers,
+        "Content-Type": "application/json",
         Authorization: "Bearer " + (await tokenPromise),
       },
     };
