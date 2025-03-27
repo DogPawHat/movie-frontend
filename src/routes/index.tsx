@@ -185,6 +185,7 @@ function Movies() {
 
       <div className="rounded-md border">
         <Suspense fallback={<div>Loading...</div>}>
+          {/* TODO: key={search} is needed to trigger a re-render when the search term changes, why is that? */}
           <MoviesTable queryRef={movieQueryRef} key={search} />
         </Suspense>
       </div>
