@@ -63,8 +63,9 @@ function GenreSelector({
 					<SelectValue placeholder="All Genres" />
 				</SelectTrigger>
 				<SelectContent>
+					<SelectItem value="all">All Genres</SelectItem>
 					{genres.map((genre) => (
-						<SelectItem key={genre.id} value={genre.id}>
+						<SelectItem key={genre.id} value={genre.title}>
 							{genre.title}
 						</SelectItem>
 					))}
@@ -89,6 +90,11 @@ export function MovieSearchBar() {
 	};
 
 	const updateGenre = (newGenre: string) => {
+		if (newGenre === "all") {
+			navigate({ search: { query, genre: "", page: 0 } });
+			return;
+		}
+
 		navigate({ search: { query, genre: newGenre, page: 0 } });
 	};
 
