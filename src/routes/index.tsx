@@ -185,7 +185,7 @@ function Movies() {
 
       <div className="rounded-md border">
         <Suspense fallback={<div>Loading...</div>}>
-          <MoviesTable queryRef={movieQueryRef} />
+          <MoviesTable queryRef={movieQueryRef} key={search} />
         </Suspense>
       </div>
     </div>
