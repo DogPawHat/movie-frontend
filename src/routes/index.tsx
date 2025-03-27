@@ -2,10 +2,12 @@ import { useReadQuery, type PreloadedQueryRef } from "@apollo/client/index.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useCallback, useState } from "react";
 import {
+  type PaginationState,
   createColumnHelper,
   useReactTable,
   flexRender,
   getCoreRowModel,
+  type Updater,
 } from "@tanstack/react-table";
 import { Input } from "~/components/ui/input";
 import {
@@ -27,12 +29,22 @@ import {
 } from "gql.tada";
 import { MOVIE_BASIC } from "~/fragments/movie";
 
+const PER_PAGE = 10;
+
 const GET_MOVIES_SEARCH = graphql(
   `
-    query GetMoviesSearch($search: String!) {
-      movies(where: { search: $search }) {
+    query GetMoviesSearch($search: String!, $page: Int! = 0) {
+      movies(
+        where: { search: $search }
+        pagination: { perPage: 10, page: $page }
+      ) {
         nodes {
           ...BasicMovie
+        }
+        pagination {
+          perPage
+          page
+          totalPages
         }
       }
     }
@@ -72,16 +84,21 @@ const columns = [
 ];
 
 const queryParamsSchema = v.object({
-  search: v.optional(v.string(), ""),
+  query: v.optional(v.string(), ""),
+  page: v.optional(v.number(), 0),
 });
 
 export const Route = createFileRoute("/")({
   validateSearch: queryParamsSchema,
-  loaderDeps: ({ search }) => ({ search: search.search }),
-  loader: async ({ context: { preloadQuery }, deps: { search } }) => {
+  loaderDeps: ({ search }) => ({
+    query: search.query,
+    page: search.page,
+  }),
+  loader: async ({ context: { preloadQuery }, deps: { query, page } }) => {
     const movieQueryRef = preloadQuery(GET_MOVIES_SEARCH, {
       variables: {
-        search,
+        search: query,
+        page,
       },
     });
     return { movieQueryRef };
@@ -90,13 +107,18 @@ export const Route = createFileRoute("/")({
 });
 
 function MovieSearchBar(props: {
-  search: string;
-  updateSearch: (search: string) => void;
+  query: string;
+  updateQuery: (query: string) => void;
 }) {
-  const [searchTerm, setSearchTerm] = useState(props.search);
+  const [searchTerm, setSearchTerm] = useState(props.query);
 
   const handleSearch = () => {
-    props.updateSearch(searchTerm);
+    props.updateQuery(searchTerm);
+  };
+
+  const handleReset = () => {
+    setSearchTerm("");
+    props.updateQuery("");
   };
 
   return (
@@ -113,6 +135,13 @@ function MovieSearchBar(props: {
         <Search className="h-4 w-4 mr-2" />
         Search
       </Button>
+      <Button
+        variant="outline"
+        onClick={handleReset}
+        disabled={!searchTerm && !props.query}
+      >
+        Reset
+      </Button>
     </div>
   );
 }
@@ -122,16 +151,38 @@ function MoviesTable(props: {
     ResultOf<typeof GET_MOVIES_SEARCH>,
     VariablesOf<typeof GET_MOVIES_SEARCH>
   >;
+  page: number;
+  sendNewPage: (page: number) => void;
 }) {
   const { data } = useReadQuery(props.queryRef);
 
   const movies =
     data.movies?.nodes?.map((node) => readFragment(MOVIE_BASIC, node)) ?? [];
 
+  const pagination = {
+    pageIndex: props.page,
+    pageSize: PER_PAGE,
+  } satisfies PaginationState;
+
+  const handlePageChange = (updater: Updater<PaginationState>) => {
+    const newPagination =
+      typeof updater === "function" ? updater(pagination) : updater;
+
+    if (newPagination.pageIndex !== pagination.pageIndex) {
+      props.sendNewPage(newPagination.pageIndex);
+    }
+  };
+
   const table = useReactTable({
     data: movies,
+    pageCount: data.movies?.pagination?.totalPages ?? -1,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    state: {
+      pagination,
+    },
+    onPaginationChange: handlePageChange,
+    manualPagination: true,
   });
 
   return (
@@ -161,32 +212,73 @@ function MoviesTable(props: {
           </TableRow>
         ))}
       </TableBody>
+      <tfoot>
+        <tr>
+          <td colSpan={columns.length} className="py-4">
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="px-2 py-1"
+              >
+                ← Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="px-2 py-1"
+              >
+                Next →
+              </Button>
+            </div>
+          </td>
+        </tr>
+      </tfoot>
     </Table>
   );
 }
 
 function Movies() {
-  const { search } = Route.useSearch();
+  const { query, page } = Route.useSearch();
   const navigate = Route.useNavigate();
   const { movieQueryRef } = Route.useLoaderData();
 
-  const updateSearch = useCallback(
-    (search: string) => {
-      navigate({ search: { search } });
+  const updateQuery = useCallback(
+    (query: string) => {
+      navigate({ search: { query, page: 0 } });
     },
     [navigate]
   );
+
+  const updatePage = useCallback(
+    (page: number) => {
+      navigate({ search: { query, page } });
+    },
+    [navigate, query]
+  );
+
+  const movieTableKey = `table=${query}-${page}`;
 
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-8 text-center">Movie Search</h1>
 
-      <MovieSearchBar search={search} updateSearch={updateSearch} />
+      <MovieSearchBar query={query} updateQuery={updateQuery} />
 
       <div className="rounded-md border">
         <Suspense fallback={<div>Loading...</div>}>
           {/* TODO: key={search} is needed to trigger a re-render when the search term changes, why is that? */}
-          <MoviesTable queryRef={movieQueryRef} key={search} />
+          <MoviesTable
+            queryRef={movieQueryRef}
+            page={page}
+            sendNewPage={updatePage}
+            key={movieTableKey}
+          />
         </Suspense>
       </div>
     </div>
