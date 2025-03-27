@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useState } from "react";
 import { Search } from "lucide-react";
 import * as v from "valibot";
 import { graphql, type ResultOf, type VariablesOf } from "gql.tada";
@@ -101,44 +101,32 @@ const queryParamsSchema = v.object({
 });
 
 export const Route = createFileRoute("/")({
-  validateSearch: queryParamsSchema,
-  beforeLoad: ({ context: { graphqlClient } }) => {
-    const getMovieFetchOptions = ({
-      query,
-      page,
-    }: {
-      query: string;
-      page: number;
-    }) =>
-      queryOptions({
-        queryKey: ["movies", { query, page }],
-        queryFn: () =>
-          graphqlClient.request({
-            document: GET_MOVIES_SEARCH,
-            variables: {
-              search: query,
-              page,
-            },
-          }),
-      });
+  beforeLoad: ({ context: { graphqlClient }, search }) => {
+    const movieFetchOptions = {
+      queryKey: ["movies", { query: search.query, page: search.page }],
+      queryFn: () =>
+        graphqlClient.request({
+          document: GET_MOVIES_SEARCH,
+          variables: {
+            search: search.query,
+            page: search.page,
+          },
+        }),
+    };
 
     const genreFetchOptions = queryOptions({
       queryKey: ["genres"],
       queryFn: () => graphqlClient.request(GET_GENRES),
     });
 
-    return { getMovieFetchOptions, genreFetchOptions };
+    return { movieFetchOptions, genreFetchOptions };
   },
-  loaderDeps: ({ search }) => ({
-    query: search.query,
-    page: search.page,
-  }),
+  validateSearch: queryParamsSchema,
   loader: async ({
-    context: { getMovieFetchOptions, genreFetchOptions, queryClient },
-    deps: { query, page },
+    context: { movieFetchOptions, genreFetchOptions, queryClient },
   }) => {
-    queryClient.prefetchQuery(getMovieFetchOptions({ query, page }));
-    // await queryClient.ensureQueryData(genreFetchOptions);
+    queryClient.prefetchQuery(movieFetchOptions);
+    await queryClient.ensureQueryData(genreFetchOptions);
   },
   component: Movies,
 });
@@ -208,8 +196,9 @@ function BaseMovieSearchBar(props: {
 function MoviesTable() {
   const navigate = Route.useNavigate();
   const { query, page } = Route.useSearch();
-  const { getMovieFetchOptions } = Route.useRouteContext();
-  const { data } = useSuspenseQuery(getMovieFetchOptions({ query, page }));
+  const { movieFetchOptions, genreFetchOptions } = Route.useRouteContext();
+  console.log(genreFetchOptions);
+  const { data } = useSuspenseQuery(movieFetchOptions);
 
   const movies = data.movies?.nodes ?? [];
 
