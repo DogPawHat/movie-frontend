@@ -8,6 +8,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { readFragment } from "gql.tada";
 import { useMemo } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -19,21 +20,50 @@ import {
 	TableHeader,
 	TableRow,
 } from "~/components/ui/table";
-import type { MovieType } from "~/types/movie-types";
+import { MOVIE_FIELDS, type MovieFields } from "~/domains/movies/data/movies";
 
 const PER_PAGE = 10;
 
-const columnHelper = createColumnHelper<MovieType>();
+const columnHelper = createColumnHelper<MovieFields>();
 
 const routeApi = getRouteApi("/");
+function formatDuration(duration: string) {
+	// Parse ISO 8601 duration format (e.g., PT2H14M)
+	const hoursMatch = duration.match(/(\d+)H/);
+	const minutesMatch = duration.match(/(\d+)M/);
+
+	const hours = hoursMatch ? Number.parseInt(hoursMatch[1] || "0", 10) : 0;
+	const minutes = minutesMatch
+		? Number.parseInt(minutesMatch[1] || "0", 10)
+		: 0;
+
+	return `${hours}h ${minutes}m`;
+}
 
 // Export columns for use in MoviesTable
 const columns = [
 	columnHelper.accessor("title", {
 		header: "Title",
 	}),
+	columnHelper.accessor("rating", {
+		header: "Rating",
+		cell: ({ cell }) => {
+			const value = cell.getValue();
+			// assume film is unrated if rating is not available
+			if (!value) return "NR";
+			return value;
+		},
+	}),
+	columnHelper.accessor("duration", {
+		header: "Duration",
+		cell: ({ cell }) => {
+			const value = cell.getValue();
+			if (!value) return null;
+			return formatDuration(value);
+		},
+	}),
 	columnHelper.accessor("datePublished", {
-		header: "Year",
+		header: "Date Published",
 	}),
 	columnHelper.display({
 		id: "poster",
@@ -59,7 +89,7 @@ function BasicMoviesTable({
 	pageCount,
 	onPaginationChange,
 }: {
-	movies: MovieType[];
+	movies: MovieFields[];
 	pagination: PaginationState;
 	pageCount: number;
 	onPaginationChange: (updater: Updater<PaginationState>) => void;
@@ -145,7 +175,11 @@ export function MoviesTable() {
 	const { data } = useSuspenseQuery(
 		getMovieFetchOptions({ query, genre: genre || "", page }),
 	);
-	const movies = useMemo(() => data.movies?.nodes ?? [], [data.movies]);
+	const movies = useMemo(
+		() =>
+			data.movies?.nodes?.map((node) => readFragment(MOVIE_FIELDS, node)) ?? [],
+		[data.movies],
+	);
 
 	const pagination = {
 		pageIndex: page,

@@ -5,8 +5,8 @@ import * as v from "valibot";
 
 import { MovieSearchBar } from "~/domains/movies/components/MovieSearchBar";
 import { MoviesTable } from "~/domains/movies/components/MoviesTable";
-import { GET_GENRES } from "~/domains/movies/queries/genre";
-import { GET_MOVIES_SEARCH } from "~/domains/movies/queries/movies";
+import { GET_GENRES } from "~/domains/movies/data/genre";
+import { GET_MOVIES_SEARCH } from "~/domains/movies/data/movies";
 
 const queryParamsSchema = v.object({
 	query: v.optional(v.string(), ""),
