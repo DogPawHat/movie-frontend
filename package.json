@@ -7,10 +7,9 @@
     "dev": "vinxi dev",
     "build": "vinxi build",
     "start": "vinxi start",
-    "lint": "eslint src/**/*.{ts,tsx}",
-    "lint:fix": "eslint src/**/*.{ts,tsx} --fix",
-    "format": "prettier --check src/**/*.{ts,tsx}",
-    "format:check": "prettier --write src/**/*.{ts,tsx}"
+    "check": "biome check ./src",
+    "check:fix-safe": "biome check --write ./src",
+    "check:fix-unsafe": "biome check --write --unsafe ./src"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.1.6",
