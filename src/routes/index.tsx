@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import * as v from "valibot";
 import { graphql } from "gql.tada";
@@ -167,8 +167,12 @@ function MovieSearchBar() {
   const { data: genreData } = useQuery(getGenreFetchOptions());
   const genres = genreData?.genres?.nodes || [];
 
-  const updateFilters = (data: { query: string; genre: string }) => {
-    navigate({ search: { query: data.query, genre: data.genre, page: 0 } });
+  const updateQuery = (newQuery: string) => {
+    navigate({ search: { query: newQuery, genre, page: 0 } });
+  };
+
+  const updateGenre = (newGenre: string) => {
+    navigate({ search: { query, genre: newGenre, page: 0 } });
   };
 
   const resetFilters = () => {
@@ -176,95 +180,88 @@ function MovieSearchBar() {
   };
 
   return (
-    <BaseMovieSearchBar
-      key={`${query}-${genre}`}
-      filters={{ query, genre }}
-      genres={genres.map((genre) => ({
-        id: genre.id || "",
-        title: genre.title || "",
-      }))}
-      updateFilters={updateFilters}
-      resetFilters={resetFilters}
-    />
-  );
-}
+    <div className="flex flex-col gap-4 mb-8 max-w-md mx-auto">
+      <MovieFilterInput query={query} updateQuery={updateQuery} />
 
-const formSchema = v.object({
-  query: v.string(),
-  genre: v.string(),
-});
+      <GenreSelector
+        genre={genre}
+        genres={genres.map((genre) => ({
+          id: genre.id || "",
+          title: genre.title || "",
+        }))}
+        updateGenre={updateGenre}
+      />
 
-function BaseMovieSearchBar(props: {
-  filters: { query: string; genre: string };
-  genres: Array<{ id: string; title: string }>;
-  updateFilters: (data: { query: string; genre: string }) => void;
-  resetFilters: () => void;
-}) {
-  const form = useForm({
-    validators: {
-      onChange: formSchema,
-    },
-    defaultValues: props.filters,
-    onSubmit: (data) => {
-      props.updateFilters(data.value);
-    },
-  });
-
-  const handleReset = () => {
-    props.resetFilters();
-  };
-
-  return (
-    <form
-      onSubmit={form.handleSubmit}
-      className="flex flex-col gap-4 mb-8 max-w-md mx-auto"
-    >
-      <div className="flex gap-2">
-        <form.Field name="query">
-          {(field) => (
-            <Input
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.target.value)}
-              placeholder="Search for movies..."
-              className="flex-1"
-            />
-          )}
-        </form.Field>
-        <form.Field name="genre">
-          {(field) => (
-            <Select
-              value={field.state.value}
-              onValueChange={(value) => field.handleChange(value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a genre" />
-              </SelectTrigger>
-              <SelectContent>
-                {props.genres.map((genre) => (
-                  <SelectItem key={genre.id} value={genre.id}>
-                    {genre.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </form.Field>
-
-        <Button type="submit">
-          <Search className="h-4 w-4 mr-2" />
-          Search
-        </Button>
+      <div className="flex justify-end">
         <Button
           type="button"
           variant="outline"
-          onClick={handleReset}
-          disabled={!props.filters.query && !props.filters.genre}
+          onClick={resetFilters}
+          disabled={!query && !genre}
         >
-          Reset
+          Reset All Filters
         </Button>
       </div>
-    </form>
+    </div>
+  );
+}
+
+function MovieFilterInput({
+  query,
+  updateQuery,
+}: {
+  query: string;
+  updateQuery: (query: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState(query);
+
+  const handleSearch = () => {
+    updateQuery(searchTerm);
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        type="text"
+        placeholder="Search for movies..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+        className="flex-1"
+      />
+      <Button onClick={handleSearch}>
+        <Search className="h-4 w-4 mr-2" />
+        Search
+      </Button>
+    </div>
+  );
+}
+
+function GenreSelector({
+  genre,
+  genres,
+  updateGenre,
+}: {
+  genre: string;
+  genres: Array<{ id: string; title: string }>;
+  updateGenre: (genre: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <label className="text-sm font-medium">Genre:</label>
+      <Select value={genre} onValueChange={updateGenre}>
+        <SelectTrigger className="flex-1">
+          <SelectValue placeholder="All Genres" />
+        </SelectTrigger>
+        <SelectContent>
+          {genres.map((genre) => (
+            <SelectItem key={genre.id} value={genre.id}>
+              {genre.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
