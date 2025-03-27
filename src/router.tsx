@@ -66,7 +66,7 @@ export function createRouter() {
     env.VITE_PUBLIC_API_URL + "/graphql",
     {
       requestMiddleware,
-    }
+    },
   );
 
   const router = createTanStackRouter({

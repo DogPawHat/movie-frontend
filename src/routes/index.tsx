@@ -10,14 +10,13 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import {
   type PaginationState,
+  type Updater,
   createColumnHelper,
-  useReactTable,
   flexRender,
   getCoreRowModel,
-  type Updater,
+  useReactTable,
 } from "@tanstack/react-table";
 
-import { useForm } from "@tanstack/react-form";
 import { Input } from "~/components/ui/input";
 import {
   Table,
@@ -37,28 +36,26 @@ import {
 } from "~/components/ui/select";
 const PER_PAGE = 10;
 
-const GET_MOVIES_SEARCH = graphql(
-  `
-    query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
-      movies(
-        where: { search: $search, genre: $genre }
-        pagination: { perPage: 10, page: $page }
-      ) {
-        nodes {
-          id
-          title
-          posterUrl
-          datePublished
-        }
-        pagination {
-          perPage
-          page
-          totalPages
-        }
+const GET_MOVIES_SEARCH = graphql(`
+  query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
+    movies(
+      where: { search: $search, genre: $genre }
+      pagination: { perPage: 10, page: $page }
+    ) {
+      nodes {
+        id
+        title
+        posterUrl
+        datePublished
+      }
+      pagination {
+        perPage
+        page
+        totalPages
       }
     }
-  `
-);
+  }
+`);
 
 const GET_GENRES = graphql(`
   query GetGenres {
@@ -70,8 +67,6 @@ const GET_GENRES = graphql(`
     }
   }
 `);
-
-type MovieQueryKey = [string, { query: string; page: number }];
 
 const columnHelper = createColumnHelper<{
   id: string | null;
@@ -302,7 +297,7 @@ function BasicMoviesTable({
               <TableHead key={header.id}>
                 {flexRender(
                   header.column.columnDef.header,
-                  header.getContext()
+                  header.getContext(),
                 )}
               </TableHead>
             ))}
@@ -360,7 +355,7 @@ function MoviesTable() {
   } = Route.useRouteContext();
 
   const { data } = useSuspenseQuery(
-    getMovieFetchOptions({ query, genre: genre || "", page })
+    getMovieFetchOptions({ query, genre: genre || "", page }),
   );
   const movies = useMemo(() => data.movies?.nodes ?? [], [data.movies]);
 
