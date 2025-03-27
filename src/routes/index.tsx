@@ -1,49 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { createColumnHelper } from "@tanstack/react-table";
-import { graphql } from "gql.tada";
 import { Suspense } from "react";
 import * as v from "valibot";
 
 import { MovieSearchBar } from "~/domains/movies/components/MovieSearchBar";
 import { MoviesTable } from "~/domains/movies/components/MoviesTable";
-import type { MovieType } from "~/types/movie-types";
-
-const PER_PAGE = 10;
-
-const GET_MOVIES_SEARCH = graphql(`
-  query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
-    movies(
-      where: { search: $search, genre: $genre }
-      pagination: { perPage: 10, page: $page }
-    ) {
-      nodes {
-        id
-        title
-        posterUrl
-        datePublished
-      }
-      pagination {
-        perPage
-        page
-        totalPages
-      }
-    }
-  }
-`);
-
-const GET_GENRES = graphql(`
-  query GetGenres {
-    genres(pagination: { perPage: 100 }) {
-      nodes {
-        id
-        title
-      }
-    }
-  }
-`);
-
-const columnHelper = createColumnHelper<MovieType>();
+import { GET_GENRES } from "~/domains/movies/data/genre";
+import { GET_MOVIES_SEARCH } from "~/domains/movies/data/movies";
 
 const queryParamsSchema = v.object({
 	query: v.optional(v.string(), ""),
