@@ -1,10 +1,5 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
-import {
-  routerWithApolloClient,
-  ApolloClient,
-  InMemoryCache,
-} from "@apollo/client-integration-tanstack-start";
-import { HttpLink } from "@apollo/client/index.js";
+import { GraphQLClient, type RequestMiddleware } from "graphql-request";
 import { routeTree } from "./routeTree.gen";
 import { DefaultCatchBoundary } from "./components/default-catch-boundary";
 import { NotFound } from "./components/not-found";
@@ -12,6 +7,8 @@ import { env } from "./env";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 import { getCookie, setCookie } from "@tanstack/react-start/server";
+import { QueryClient } from "@tanstack/react-query";
+import { routerWithQueryClient } from "@tanstack/react-router-with-query";
 
 const TokenReturnSchema = v.object({
   token: v.string(),
@@ -51,39 +48,43 @@ const getAuthToken = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export function createRouter() {
+  const queryClient = new QueryClient();
   const tokenPromise = getAuthToken();
 
-  // can't make createRouter async as my build complains about not having top level await
-  // hence the custom fetch
-  const customFetch = (async (uri, options) => {
-    const token = await tokenPromise;
-    return fetch(uri, {
-      ...options,
-      headers: { ...options?.headers, Authorization: "Bearer " + token },
-    });
-  }) satisfies typeof fetch;
+  const requestMiddleware: RequestMiddleware = async (request) => {
+    return {
+      ...request,
+      headers: {
+        ...request.headers,
+        Authorization: "Bearer " + (await tokenPromise),
+      },
+    };
+  };
 
-  const apolloClient = new ApolloClient({
-    cache: new InMemoryCache(),
-    link: new HttpLink({
-      uri: env.VITE_PUBLIC_API_URL + "/graphql",
-      fetch: customFetch,
-    }),
-  });
+  const graphqlClient = new GraphQLClient(
+    env.VITE_PUBLIC_API_URL + "/graphql",
+    {
+      requestMiddleware,
+    }
+  );
+
   const router = createTanStackRouter({
     routeTree,
     // the context properties `apolloClient` and `preloadQuery`
     // will be filled in by calling `routerWithApolloClient` later
     // you should omit them here, which means you have to
     // `as any` this context object
-    context: {} as any,
+    context: {
+      queryClient,
+      graphqlClient,
+    },
     defaultPreload: "intent",
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
     scrollRestoration: true,
   });
 
-  return routerWithApolloClient(router, apolloClient);
+  return routerWithQueryClient(router, queryClient);
 }
 
 declare module "@tanstack/react-router" {

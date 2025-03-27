@@ -1,10 +1,9 @@
-import { type ApolloClientRouterContext } from "@apollo/client-integration-tanstack-start";
+import type { GraphQLClient } from "graphql-request";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
-  Link,
   Outlet,
   Scripts,
-  createRootRoute,
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
@@ -13,7 +12,10 @@ import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { NotFound } from "~/components/not-found";
 import appCss from "~/styles/app.css?url";
 
-export const Route = createRootRouteWithContext<ApolloClientRouterContext>()({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+  graphqlClient: GraphQLClient;
+}>()({
   head: () => ({
     meta: [
       {

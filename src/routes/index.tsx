@@ -1,6 +1,13 @@
-import { useReadQuery, type PreloadedQueryRef } from "@apollo/client/index.js";
-import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useCallback, useState } from "react";
+import { Search } from "lucide-react";
+import * as v from "valibot";
+import { graphql, type ResultOf, type VariablesOf } from "gql.tada";
+import {
+  QueryClient,
+  queryOptions,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   type PaginationState,
   createColumnHelper,
@@ -9,6 +16,7 @@ import {
   getCoreRowModel,
   type Updater,
 } from "@tanstack/react-table";
+
 import { Input } from "~/components/ui/input";
 import {
   Table,
@@ -19,15 +27,6 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
-import { Search } from "lucide-react";
-import * as v from "valibot";
-import {
-  graphql,
-  readFragment,
-  type ResultOf,
-  type VariablesOf,
-} from "gql.tada";
-import { MOVIE_BASIC } from "~/fragments/movie";
 
 const PER_PAGE = 10;
 
@@ -39,7 +38,10 @@ const GET_MOVIES_SEARCH = graphql(
         pagination: { perPage: 10, page: $page }
       ) {
         nodes {
-          ...BasicMovie
+          id
+          title
+          posterUrl
+          datePublished
         }
         pagination {
           perPage
@@ -48,9 +50,19 @@ const GET_MOVIES_SEARCH = graphql(
         }
       }
     }
-  `,
-  [MOVIE_BASIC]
+  `
 );
+
+const GET_GENRES = graphql(`
+  query GetGenres {
+    genres {
+      nodes {
+        id
+        title
+      }
+    }
+  }
+`);
 
 const columnHelper = createColumnHelper<{
   id: string | null;
@@ -90,48 +102,95 @@ const queryParamsSchema = v.object({
 
 export const Route = createFileRoute("/")({
   validateSearch: queryParamsSchema,
+  beforeLoad: ({ context: { graphqlClient } }) => {
+    const getMovieFetchOptions = ({
+      query,
+      page,
+    }: {
+      query: string;
+      page: number;
+    }) =>
+      queryOptions({
+        queryKey: ["movies", { query, page }],
+        queryFn: () =>
+          graphqlClient.request({
+            document: GET_MOVIES_SEARCH,
+            variables: {
+              search: query,
+              page,
+            },
+          }),
+      });
+
+    const genreFetchOptions = queryOptions({
+      queryKey: ["genres"],
+      queryFn: () => graphqlClient.request(GET_GENRES),
+    });
+
+    return { getMovieFetchOptions, genreFetchOptions };
+  },
   loaderDeps: ({ search }) => ({
     query: search.query,
     page: search.page,
   }),
-  loader: async ({ context: { preloadQuery }, deps: { query, page } }) => {
-    const movieQueryRef = preloadQuery(GET_MOVIES_SEARCH, {
-      variables: {
-        search: query,
-        page,
-      },
-    });
-    return { movieQueryRef };
+  loader: async ({
+    context: { getMovieFetchOptions, genreFetchOptions, queryClient },
+    deps: { query, page },
+  }) => {
+    queryClient.prefetchQuery(getMovieFetchOptions({ query, page }));
+    // await queryClient.ensureQueryData(genreFetchOptions);
   },
   component: Movies,
 });
 
-function MovieSearchBar(props: {
+function MovieSearchBar() {
+  const { query } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  const handleSearch = (searchTerm: string) => {
+    navigate({ search: { query: searchTerm, page: 0 } });
+  };
+
+  const handleReset = () => {
+    navigate({ search: { query: "", page: 0 } });
+  };
+
+  return (
+    <BaseMovieSearchBar
+      key={query}
+      query={query}
+      updateQuery={handleSearch}
+      resetQuery={handleReset}
+    />
+  );
+}
+
+function BaseMovieSearchBar(props: {
   query: string;
   updateQuery: (query: string) => void;
+  resetQuery: () => void;
 }) {
   const [searchTerm, setSearchTerm] = useState(props.query);
 
-  const handleSearch = () => {
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     props.updateQuery(searchTerm);
   };
 
   const handleReset = () => {
-    setSearchTerm("");
-    props.updateQuery("");
+    props.resetQuery();
   };
 
   return (
-    <div className="flex gap-2 mb-8 max-w-md mx-auto">
+    <form onSubmit={handleSearch} className="flex gap-2 mb-8 max-w-md mx-auto">
       <Input
         type="text"
         placeholder="Search for movies..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         className="flex-1"
       />
-      <Button onClick={handleSearch}>
+      <Button type="submit">
         <Search className="h-4 w-4 mr-2" />
         Search
       </Button>
@@ -142,25 +201,20 @@ function MovieSearchBar(props: {
       >
         Reset
       </Button>
-    </div>
+    </form>
   );
 }
 
-function MoviesTable(props: {
-  queryRef: PreloadedQueryRef<
-    ResultOf<typeof GET_MOVIES_SEARCH>,
-    VariablesOf<typeof GET_MOVIES_SEARCH>
-  >;
-  page: number;
-  sendNewPage: (page: number) => void;
-}) {
-  const { data } = useReadQuery(props.queryRef);
+function MoviesTable() {
+  const navigate = Route.useNavigate();
+  const { query, page } = Route.useSearch();
+  const { getMovieFetchOptions } = Route.useRouteContext();
+  const { data } = useSuspenseQuery(getMovieFetchOptions({ query, page }));
 
-  const movies =
-    data.movies?.nodes?.map((node) => readFragment(MOVIE_BASIC, node)) ?? [];
+  const movies = data.movies?.nodes ?? [];
 
   const pagination = {
-    pageIndex: props.page,
+    pageIndex: page,
     pageSize: PER_PAGE,
   } satisfies PaginationState;
 
@@ -169,7 +223,7 @@ function MoviesTable(props: {
       typeof updater === "function" ? updater(pagination) : updater;
 
     if (newPagination.pageIndex !== pagination.pageIndex) {
-      props.sendNewPage(newPagination.pageIndex);
+      navigate({ search: { query, page: newPagination.pageIndex } });
     }
   };
 
@@ -244,41 +298,15 @@ function MoviesTable(props: {
 }
 
 function Movies() {
-  const { query, page } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const { movieQueryRef } = Route.useLoaderData();
-
-  const updateQuery = useCallback(
-    (query: string) => {
-      navigate({ search: { query, page: 0 } });
-    },
-    [navigate]
-  );
-
-  const updatePage = useCallback(
-    (page: number) => {
-      navigate({ search: { query, page } });
-    },
-    [navigate, query]
-  );
-
-  const movieTableKey = `table=${query}-${page}`;
-
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-8 text-center">Movie Search</h1>
 
-      <MovieSearchBar query={query} updateQuery={updateQuery} />
+      <MovieSearchBar />
 
       <div className="rounded-md border">
         <Suspense fallback={<div>Loading...</div>}>
-          {/* TODO: key={search} is needed to trigger a re-render when the search term changes, why is that? */}
-          <MoviesTable
-            queryRef={movieQueryRef}
-            page={page}
-            sendNewPage={updatePage}
-            key={movieTableKey}
-          />
+          <MoviesTable />
         </Suspense>
       </div>
     </div>
