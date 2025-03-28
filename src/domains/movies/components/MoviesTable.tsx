@@ -11,6 +11,7 @@ import {
 import { type FragmentOf, type ResultOf, readFragment } from "gql.tada";
 import { cn } from "~/lib/utils";
 
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
 	Table,
@@ -91,6 +92,9 @@ const columns = [
 		header: "Poster",
 		cell: ({ row }) => {
 			const posterUrl = row.getValue("posterUrl") as string | null;
+			const [errorState, setErrorState] = useState<
+				"none" | "loading" | "error"
+			>("loading");
 
 			return (
 				<Link
@@ -98,11 +102,17 @@ const columns = [
 					params={{ movieId: row.original.id as string }}
 					className="hover:opacity-80 transition-opacity"
 				>
-					{posterUrl ? (
+					{posterUrl && errorState !== "error" ? (
 						<img
 							src={posterUrl}
 							alt={`${row.getValue("title") || "Movie"} poster`}
 							className="w-16 h-auto rounded"
+							onError={(e) => {
+								setErrorState("error");
+							}}
+							onLoad={() => {
+								setErrorState("none");
+							}}
 						/>
 					) : (
 						<div className="w-16 h-24 bg-gray-200 rounded flex items-center justify-center">
