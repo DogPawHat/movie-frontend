@@ -21,9 +21,11 @@ const routeApi = getRouteApi("/");
 function MovieFilterInput({
 	query,
 	updateQuery,
+	preloadQuery,
 }: {
 	query: string;
 	updateQuery: (query: string) => void;
+	preloadQuery: (query: string) => void;
 }) {
 	const [searchTerm, setSearchTerm] = useState(query);
 
@@ -38,7 +40,10 @@ function MovieFilterInput({
 				type="text"
 				placeholder="Search for movies..."
 				value={searchTerm}
-				onChange={(e) => setSearchTerm(e.target.value)}
+				onChange={(e) => {
+					setSearchTerm(e.target.value);
+					preloadQuery(e.target.value);
+				}}
 				className="flex-1"
 			/>
 			<Button type="submit">
@@ -82,7 +87,9 @@ function GenreSelector({
 							<SelectItem
 								key={genre.id}
 								value={genre.title}
-								onMouseOver={() => preloadGenre(genre.title)}
+								onMouseOver={() =>
+									genre.title != null && preloadGenre(genre.title)
+								}
 							>
 								{genre.title}
 							</SelectItem>
@@ -123,6 +130,27 @@ export function MovieSearchBar() {
 		[navigate, query],
 	);
 
+	// Debounce the prefetching of queries to avoid overwhelming the server
+	const preloadQueryDebouncer = useMemo(() => {
+		return funnel(
+			(newQuery: string) => {
+				queryClient.prefetchQuery({
+					...getMovieFetchOptions({ query: newQuery, genre, page: 1 }),
+					// want this to be short since you can have a lot of cache entries that are not used
+					gcTime: 15 * 1000, // 15 seconds
+				});
+			},
+			{ minQuietPeriodMs: 300, reducer: (_acc, curr: string) => curr },
+		);
+	}, [queryClient, getMovieFetchOptions, genre]);
+
+	const preloadQuery = useCallback(
+		(newQuery: string) => {
+			preloadQueryDebouncer.call(newQuery);
+		},
+		[preloadQueryDebouncer],
+	);
+
 	// Debounce the prefetching of genres to avoid overwhelming the server
 	const preloadGenereDebouncer = useMemo(() => {
 		return funnel(
@@ -158,7 +186,11 @@ export function MovieSearchBar() {
 
 	return (
 		<div className="flex flex-col gap-4 mb-8 max-w-md mx-auto">
-			<MovieFilterInput query={query} updateQuery={updateQuery} />
+			<MovieFilterInput
+				query={query}
+				updateQuery={updateQuery}
+				preloadQuery={preloadQuery}
+			/>
 
 			<GenreSelector
 				genre={genre || ""}
