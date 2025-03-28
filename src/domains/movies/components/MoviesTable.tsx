@@ -23,7 +23,7 @@ import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
 import { cn } from "~/lib/utils";
 
-const PER_PAGE = 10;
+const PER_PAGE = 7;
 
 type MovieFieldsFragment = FragmentOf<typeof BaseMovieFields>;
 type MovieFieldsData = ResultOf<typeof BaseMovieFields>;

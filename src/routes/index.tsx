@@ -27,7 +27,7 @@ export const GetMoviesSearch = graphql(
   query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
     movies(
       where: { search: $search, genre: $genre }
-      pagination: { perPage: 10, page: $page }
+      pagination: { perPage: 7, page: $page }
     ) {
       nodes {
         ...BaseMovieFields
@@ -135,7 +135,7 @@ export const useMoviePaginationPrefetch = () => {
 };
 
 function Movies() {
-	// useMoviePaginationPrefetch();
+	useMoviePaginationPrefetch();
 
 	return (
 		<div className="container mx-auto py-8 px-4">
