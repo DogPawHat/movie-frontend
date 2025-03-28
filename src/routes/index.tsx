@@ -68,11 +68,9 @@ function Movies() {
 
 			<MovieSearchBar />
 
-			<div className="rounded-md border">
-				<Suspense fallback={<div>Loading...</div>}>
-					<MoviesTable />
-				</Suspense>
-			</div>
+			<Suspense fallback={<div>Loading...</div>}>
+				<MoviesTable />
+			</Suspense>
 		</div>
 	);
 }

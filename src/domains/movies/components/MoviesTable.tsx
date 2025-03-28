@@ -107,61 +107,61 @@ function BasicMoviesTable({
 	});
 
 	return (
-		<Table>
-			<TableHeader>
-				{table.getHeaderGroups().map((headerGroup) => (
-					<TableRow key={headerGroup.id}>
-						{headerGroup.headers.map((header) => (
-							<TableHead key={header.id}>
-								{flexRender(
-									header.column.columnDef.header,
-									header.getContext(),
-								)}
-							</TableHead>
+		<div className="flex flex-col gap-4">
+			<div className="rounded-md border">
+				<Table>
+					<TableHeader>
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow key={headerGroup.id}>
+								{headerGroup.headers.map((header) => (
+									<TableHead key={header.id}>
+										{flexRender(
+											header.column.columnDef.header,
+											header.getContext(),
+										)}
+									</TableHead>
+								))}
+							</TableRow>
 						))}
-					</TableRow>
-				))}
-			</TableHeader>
-			<TableBody>
-				{table.getRowModel().rows.map((row) => (
-					<TableRow key={row.id}>
-						{row.getVisibleCells().map((cell) => (
-							<TableCell key={cell.id}>
-								{flexRender(cell.column.columnDef.cell, cell.getContext())}
-							</TableCell>
+					</TableHeader>
+					<TableBody>
+						{table.getRowModel().rows.map((row) => (
+							<TableRow key={row.id}>
+								{row.getVisibleCells().map((cell) => (
+									<TableCell key={cell.id}>
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									</TableCell>
+								))}
+							</TableRow>
 						))}
-					</TableRow>
-				))}
-			</TableBody>
-			<tfoot>
-				<tr>
-					<td colSpan={columns.length} className="py-4">
-						<div className="flex items-center justify-center gap-2">
-							<Button
-								variant="outline"
-								onClick={() => table.previousPage()}
-								disabled={!table.getCanPreviousPage()}
-								className="px-2 py-1"
-							>
-								← Previous
-							</Button>
-							<span className="text-sm text-muted-foreground">
-								Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}{" "}
-								(approx. {(pageCount * PER_PAGE).toLocaleString()} results)
-							</span>
-							<Button
-								variant="outline"
-								onClick={() => table.nextPage()}
-								disabled={!table.getCanNextPage()}
-								className="px-2 py-1"
-							>
-								Next →
-							</Button>
-						</div>
-					</td>
-				</tr>
-			</tfoot>
-		</Table>
+					</TableBody>
+				</Table>
+			</div>
+
+			{/* Pagination controls - now outside the table border */}
+			<div className="flex items-center justify-center gap-2 py-4">
+				<Button
+					variant="outline"
+					onClick={() => table.previousPage()}
+					disabled={!table.getCanPreviousPage()}
+					className="px-2 py-1"
+				>
+					← Previous
+				</Button>
+				<span className="text-sm text-muted-foreground">
+					Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}{" "}
+					(approx. {(pageCount * PER_PAGE).toLocaleString()} results)
+				</span>
+				<Button
+					variant="outline"
+					onClick={() => table.nextPage()}
+					disabled={!table.getCanNextPage()}
+					className="px-2 py-1"
+				>
+					Next →
+				</Button>
+			</div>
+		</div>
 	);
 }
 
