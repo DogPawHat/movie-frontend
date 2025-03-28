@@ -19,3 +19,6 @@ The struction of the project is as follows:
 - ShadCn, Radix and Tailwind provide the standard design components. It makes getting a decent UX up and running and pairs excellently with AI tooling in Cursor.
 - GraphQL queries are defined in route files and used in `queryOptions` objects with the `graphQLClient` in the route context function. Fragments for the app are located in `domains/movies/data`
 - `index.tsx` is where the guts of the app is. The state of the table filters is stored in search query params validated with Valibot (Search Params are a killer feature of Tanstack Router, see [here](https://tanstack.com/router/latest/docs/framework/react/guide/search-params) for more details). The filters components and data table for this route I have placed in `domains/movies/components`
+- I've also added a full movie viewer at `/movie/$movieId` where you can see more details on a given movie (generes, crew and cast, etc)
+
+I'm pretty happy with how well it's come out. I've set up preload intent links on the movie viewer, and I also prefetch the previous and next pages in the table as well, so you usually never hit the loading state when going back and forth. I've also added optimistic debounced prefetching to the query and genre filters to improve responstivieness in that flow.
