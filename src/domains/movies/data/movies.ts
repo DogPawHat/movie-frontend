@@ -1,7 +1,7 @@
 import { type ResultOf, graphql } from "gql.tada";
 
-export const MOVIE_FIELDS = graphql(`
-  fragment MovieFields on Movie {
+export const BASE_MOVIE_FIELDS = graphql(`
+  fragment BaseMovieFields on Movie {
     id
     title
     posterUrl
@@ -12,9 +12,9 @@ export const MOVIE_FIELDS = graphql(`
   }
 `);
 
-export const FULL_MOVIE_FIELDS = graphql(`
+export const FULL_MOVIE_FIELDS = graphql(
+	`
   fragment FullMovieFields on Movie {
-    ...MovieFields
     summary
     directors
     mainActors
@@ -23,11 +23,11 @@ export const FULL_MOVIE_FIELDS = graphql(`
       id
       title
     }
-    
   }
-`);
+`,
+);
 
-export type MovieFields = ResultOf<typeof MOVIE_FIELDS>;
+export type MovieFields = ResultOf<typeof BASE_MOVIE_FIELDS>;
 
 export const GET_MOVIES_SEARCH = graphql(
 	`
@@ -37,7 +37,7 @@ export const GET_MOVIES_SEARCH = graphql(
       pagination: { perPage: 10, page: $page }
     ) {
       nodes {
-        ...MovieFields
+        ...BaseMovieFields
       }
       pagination {
         perPage
@@ -47,15 +47,16 @@ export const GET_MOVIES_SEARCH = graphql(
     }
   }
 `,
-	[MOVIE_FIELDS],
+	[BASE_MOVIE_FIELDS],
 );
 
 export const GET_FULL_MOVIE = graphql(
 	`
   query GetFullMovie($id: ID!) {
     movie(id: $id) {
+      ...BaseMovieFields
       ...FullMovieFields
     }
   }`,
-	[FULL_MOVIE_FIELDS],
+	[BASE_MOVIE_FIELDS, FULL_MOVIE_FIELDS],
 );
