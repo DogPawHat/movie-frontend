@@ -71,10 +71,6 @@ export function createRouter() {
 
 	const router = createTanStackRouter({
 		routeTree,
-		// the context properties `apolloClient` and `preloadQuery`
-		// will be filled in by calling `routerWithApolloClient` later
-		// you should omit them here, which means you have to
-		// `as any` this context object
 		context: {
 			queryClient,
 			graphqlClient,
