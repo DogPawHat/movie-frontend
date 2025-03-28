@@ -6,6 +6,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { FullMovieFields } from "~/domains/movies/fragments/full-movie";
+import { formatDuration } from "~/lib/utils";
 
 const GetFullMovie = graphql(
 	`

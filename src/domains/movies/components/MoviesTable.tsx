@@ -23,7 +23,7 @@ import {
 } from "~/components/ui/table";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
-import { PER_PAGE } from "~/lib/utils";
+import { PER_PAGE, formatDuration } from "~/lib/utils";
 
 type MovieFieldsFragment = FragmentOf<typeof BaseMovieFields>;
 type MovieFieldsData = ResultOf<typeof BaseMovieFields>;
@@ -31,19 +31,6 @@ type MovieFieldsData = ResultOf<typeof BaseMovieFields>;
 const columnHelper = createColumnHelper<MovieFieldsData>();
 
 const routeApi = getRouteApi("/");
-
-function formatDuration(duration: string) {
-	// Parse ISO 8601 duration format (e.g., PT2H14M)
-	const hoursMatch = duration.match(/(\d+)H/);
-	const minutesMatch = duration.match(/(\d+)M/);
-
-	const hours = hoursMatch ? Number.parseInt(hoursMatch[1] || "0", 10) : 0;
-	const minutes = minutesMatch
-		? Number.parseInt(minutesMatch[1] || "0", 10)
-		: 0;
-
-	return `${hours}h ${minutes}m`;
-}
 
 const columns = [
 	columnHelper.accessor("title", {
@@ -156,6 +143,15 @@ function BasicMoviesTable({
 		manualPagination: true,
 	});
 
+	// prefetch the next/previous page if the table has the ability to paginate
+	if (table.getCanPreviousPage()) {
+		preloadPreviousPage();
+	}
+
+	if (table.getCanNextPage()) {
+		preloadNextPage();
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border">
@@ -237,13 +233,6 @@ function BasicMoviesTable({
 				<Button
 					variant="outline"
 					onClick={() => table.previousPage()}
-					onMouseMove={() => {
-						if (!table.getCanPreviousPage()) {
-							return;
-						}
-
-						preloadPreviousPage();
-					}}
 					disabled={isLoading || !table.getCanPreviousPage()}
 					className="px-2 py-1"
 				>
@@ -257,13 +246,6 @@ function BasicMoviesTable({
 				<Button
 					variant="outline"
 					onClick={() => table.nextPage()}
-					onMouseMove={() => {
-						if (!table.getCanNextPage()) {
-							return;
-						}
-
-						preloadNextPage();
-					}}
 					disabled={isLoading || !table.getCanNextPage()}
 					className="px-2 py-1"
 				>
@@ -304,7 +286,6 @@ export function MoviesTable() {
 		}
 	};
 
-	// When the user hovers over the pagination buttons prefetch the next/previous page
 	const preloadPreviousPage = useCallback(async () => {
 		await queryClient.prefetchQuery({
 			...getMovieFetchOptions({
