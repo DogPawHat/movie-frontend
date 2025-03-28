@@ -1,6 +1,6 @@
-import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { graphql, readFragment } from "gql.tada";
+import { graphql } from "gql.tada";
 import * as v from "valibot";
 
 import { MovieSearchBar } from "~/domains/movies/components/MovieSearchBar";
@@ -91,52 +91,7 @@ export const Route = createFileRoute("/")({
 	component: Movies,
 });
 
-export const useMoviePaginationPrefetch = () => {
-	const queryClient = useQueryClient();
-	const { query, page, genre } = Route.useSearch();
-	const { getMovieFetchOptions } = Route.useRouteContext();
-
-	const currentPageOptions = getMovieFetchOptions({ query, page, genre });
-
-	const { data } = useQuery(currentPageOptions);
-	const pagination = readFragment(
-		MoviePaginationFields,
-		data?.movies?.pagination,
-	);
-
-	const nextPage = pagination?.page ? pagination.page + 1 : "__disabled";
-	const previousPage = pagination?.page ? pagination.page - 1 : "__disabled";
-
-	const hasNext =
-		nextPage !== "__disabled" && nextPage <= (pagination?.totalPages ?? -1);
-	const hasPrevious = previousPage !== "__disabled" && previousPage > 0;
-	console.log(nextPage, previousPage);
-	console.log(hasNext, hasPrevious);
-
-	if (hasPrevious) {
-		queryClient.prefetchQuery(
-			getMovieFetchOptions({
-				query,
-				page: previousPage,
-				genre,
-			}),
-		);
-	}
-
-	if (hasNext) {
-		queryClient.prefetchQuery(
-			getMovieFetchOptions({
-				query,
-				page: nextPage,
-				genre,
-			}),
-		);
-	}
-};
-
 function Movies() {
-	useMoviePaginationPrefetch();
-
 	return (
 		<div className="container mx-auto py-8 px-4">
 			<h1 className="text-3xl font-bold mb-8 text-center">Movie Search</h1>

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import {
 	type PaginationState,
@@ -11,7 +11,7 @@ import {
 import { type FragmentOf, type ResultOf, readFragment } from "gql.tada";
 import { cn } from "~/lib/utils";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
 	Table,
@@ -132,11 +132,15 @@ function BasicMoviesTable({
 	pageCount,
 	onPaginationChange,
 	isLoading,
+	preloadPreviousPage,
+	preloadNextPage,
 }: {
 	movies: MovieFieldsFragment[];
 	pagination: PaginationState;
 	pageCount: number;
 	onPaginationChange: (updater: Updater<PaginationState>) => void;
+	preloadPreviousPage: () => void;
+	preloadNextPage: () => void;
 	isLoading?: boolean;
 }) {
 	const table = useReactTable({
@@ -233,6 +237,13 @@ function BasicMoviesTable({
 				<Button
 					variant="outline"
 					onClick={() => table.previousPage()}
+					onMouseMove={() => {
+						if (!table.getCanPreviousPage()) {
+							return;
+						}
+
+						preloadPreviousPage();
+					}}
 					disabled={isLoading || !table.getCanPreviousPage()}
 					className="px-2 py-1"
 				>
@@ -246,6 +257,13 @@ function BasicMoviesTable({
 				<Button
 					variant="outline"
 					onClick={() => table.nextPage()}
+					onMouseMove={() => {
+						if (!table.getCanNextPage()) {
+							return;
+						}
+
+						preloadNextPage();
+					}}
 					disabled={isLoading || !table.getCanNextPage()}
 					className="px-2 py-1"
 				>
@@ -258,6 +276,7 @@ function BasicMoviesTable({
 
 export function MoviesTable() {
 	const navigate = routeApi.useNavigate();
+	const queryClient = useQueryClient();
 	const { query, genre, page } = routeApi.useSearch();
 	const { getMovieFetchOptions } = routeApi.useRouteContext();
 
@@ -285,6 +304,28 @@ export function MoviesTable() {
 		}
 	};
 
+	const preloadPreviousPage = useCallback(async () => {
+		await queryClient.prefetchQuery({
+			...getMovieFetchOptions({
+				query,
+				genre,
+				page: page - 1,
+			}),
+			staleTime: 1000 * 10 * 5,
+		});
+	}, [queryClient, getMovieFetchOptions, query, genre, page]);
+
+	const preloadNextPage = useCallback(async () => {
+		await queryClient.prefetchQuery({
+			...getMovieFetchOptions({
+				query,
+				genre,
+				page: page + 1,
+			}),
+			staleTime: 1000 * 10 * 5,
+		});
+	}, [queryClient, getMovieFetchOptions, query, genre, page]);
+
 	return (
 		<BasicMoviesTable
 			movies={movies}
@@ -292,6 +333,8 @@ export function MoviesTable() {
 			pageCount={paginationInfo?.totalPages ?? -1}
 			onPaginationChange={handlePageChange}
 			isLoading={isLoading}
+			preloadPreviousPage={preloadPreviousPage}
+			preloadNextPage={preloadNextPage}
 		/>
 	);
 }
