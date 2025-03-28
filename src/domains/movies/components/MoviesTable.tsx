@@ -11,6 +11,12 @@ import {
 import { type FragmentOf, type ResultOf, readFragment } from "gql.tada";
 import { cn } from "~/lib/utils";
 
+import {
+	ChevronLeft,
+	ChevronRight,
+	ChevronsLeft,
+	ChevronsRight,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -121,6 +127,8 @@ function BasicMoviesTable({
 	isLoading,
 	preloadPreviousPage,
 	preloadNextPage,
+	preloadFirstPage,
+	preloadLastPage,
 }: {
 	movies: MovieFieldsFragment[];
 	pagination: PaginationState;
@@ -128,6 +136,8 @@ function BasicMoviesTable({
 	onPaginationChange: (updater: Updater<PaginationState>) => void;
 	preloadPreviousPage: () => void;
 	preloadNextPage: () => void;
+	preloadFirstPage: () => void;
+	preloadLastPage: () => void;
 	isLoading?: boolean;
 }) {
 	const table = useReactTable({
@@ -150,6 +160,15 @@ function BasicMoviesTable({
 
 	if (table.getCanNextPage()) {
 		preloadNextPage();
+	}
+
+	// Prefetch the first and last pages if we're not on those pages
+	if (pagination.pageIndex > 0) {
+		preloadFirstPage();
+	}
+
+	if (pagination.pageIndex < pageCount - 1 && pageCount > 1) {
+		preloadLastPage();
 	}
 
 	return (
@@ -232,16 +251,31 @@ function BasicMoviesTable({
 			<div className="flex items-center justify-center gap-2 py-4">
 				<Button
 					variant="outline"
+					onClick={() => table.firstPage()}
+					disabled={isLoading || !table.getCanPreviousPage()}
+					className="px-2 py-1"
+					title="First Page"
+				>
+					<ChevronsLeft className="h-4 w-4 mr-1" />
+					<span className="hidden sm:inline">First</span>
+				</Button>
+				<Button
+					variant="outline"
 					onClick={() => table.previousPage()}
 					disabled={isLoading || !table.getCanPreviousPage()}
 					className="px-2 py-1"
 				>
-					← Previous
+					<ChevronLeft className="h-4 w-4 mr-1" />
+					<span className="hidden sm:inline">Previous</span>
 				</Button>
 				<span className="text-sm text-muted-foreground">
-					Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}{" "}
-					{!isLoading &&
-						`(approx. ${(pageCount * PER_PAGE).toLocaleString()} results)`}
+					<span className="hidden sm:inline">Page</span>{" "}
+					{pagination.pageIndex + 1} / {table.getPageCount() || 1}{" "}
+					{!isLoading && (
+						<span className="hidden sm:inline">
+							(approx. {(pageCount * PER_PAGE).toLocaleString()} results)
+						</span>
+					)}
 				</span>
 				<Button
 					variant="outline"
@@ -249,7 +283,18 @@ function BasicMoviesTable({
 					disabled={isLoading || !table.getCanNextPage()}
 					className="px-2 py-1"
 				>
-					Next →
+					<span className="hidden sm:inline">Next</span>
+					<ChevronRight className="h-4 w-4 ml-1" />
+				</Button>
+				<Button
+					variant="outline"
+					onClick={() => table.lastPage()}
+					disabled={isLoading || !table.getCanNextPage()}
+					className="px-2 py-1"
+					title="Last Page"
+				>
+					<span className="hidden sm:inline">Last</span>
+					<ChevronsRight className="h-4 w-4 ml-1" />
 				</Button>
 			</div>
 		</div>
@@ -300,20 +345,49 @@ export function MoviesTable() {
 				genre,
 				page: page - 1,
 			}),
-			staleTime: 1000 * 10 * 5,
 		});
 	}, [queryClient, getMovieFetchOptions, query, genre, page]);
 
 	const preloadNextPage = useCallback(async () => {
-		await queryClient.prefetchQuery({
-			...getMovieFetchOptions({
+		await queryClient.prefetchQuery(
+			getMovieFetchOptions({
 				query,
 				genre,
 				page: page + 1,
 			}),
-			staleTime: 1000 * 10 * 5,
-		});
+		);
 	}, [queryClient, getMovieFetchOptions, query, genre, page]);
+
+	const preloadFirstPage = useCallback(async () => {
+		if (page > 1) {
+			await queryClient.prefetchQuery(
+				getMovieFetchOptions({
+					query,
+					genre,
+					page: 1,
+				}),
+			);
+		}
+	}, [queryClient, getMovieFetchOptions, query, genre, page]);
+
+	const preloadLastPage = useCallback(async () => {
+		if (paginationInfo?.totalPages && page < paginationInfo.totalPages) {
+			await queryClient.prefetchQuery(
+				getMovieFetchOptions({
+					query,
+					genre,
+					page: paginationInfo.totalPages,
+				}),
+			);
+		}
+	}, [
+		queryClient,
+		getMovieFetchOptions,
+		query,
+		genre,
+		page,
+		paginationInfo?.totalPages,
+	]);
 
 	return (
 		<BasicMoviesTable
@@ -324,6 +398,8 @@ export function MoviesTable() {
 			isLoading={isLoading}
 			preloadPreviousPage={preloadPreviousPage}
 			preloadNextPage={preloadNextPage}
+			preloadFirstPage={preloadFirstPage}
+			preloadLastPage={preloadLastPage}
 		/>
 	);
 }
