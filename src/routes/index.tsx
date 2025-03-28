@@ -42,9 +42,9 @@ export const GetMoviesSearch = graphql(
 );
 
 const queryParamsSchema = v.object({
-	query: v.optional(v.string(), ""),
-	genre: v.optional(v.string(), ""),
-	page: v.fallback(v.pipe(v.number(), v.minValue(1)), 1),
+	query: v.optional(v.fallback(v.string(), ""), ""),
+	genre: v.optional(v.fallback(v.string(), ""), ""),
+	page: v.optional(v.fallback(v.pipe(v.number(), v.minValue(1)), 1), 1),
 });
 
 export const Route = createFileRoute("/")({
