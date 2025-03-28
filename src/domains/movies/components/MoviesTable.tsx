@@ -21,6 +21,7 @@ import {
 } from "~/components/ui/table";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
+import { cn } from "~/lib/utils";
 
 const PER_PAGE = 10;
 
@@ -120,11 +121,13 @@ function BasicMoviesTable({
 	pagination,
 	pageCount,
 	onPaginationChange,
+	isLoading,
 }: {
 	movies: MovieFieldsFragment[];
 	pagination: PaginationState;
 	pageCount: number;
 	onPaginationChange: (updater: Updater<PaginationState>) => void;
+	isLoading?: boolean;
 }) {
 	const table = useReactTable({
 		pageCount,
@@ -158,15 +161,41 @@ function BasicMoviesTable({
 						))}
 					</TableHeader>
 					<TableBody>
-						{table.getRowModel().rows.map((row) => (
-							<TableRow key={row.id}>
-								{row.getVisibleCells().map((cell) => (
-									<TableCell key={cell.id}>
-										{flexRender(cell.column.columnDef.cell, cell.getContext())}
-									</TableCell>
+						{isLoading
+							? // Display skeleton rows when loading
+								Array.from({ length: PER_PAGE }).map((_, index) => {
+									const rowId = `skeleton-row-${pagination.pageIndex}-${index}`;
+									return (
+										<TableRow key={rowId} className="animate-pulse">
+											{columns.map((column, colIndex) => {
+												const cellId = `${rowId}-cell-${column.id || `col-${colIndex}`}`;
+												return (
+													<TableCell key={cellId}>
+														<div
+															className={cn(
+																"h-4 bg-gray-200 dark:bg-gray-700 rounded",
+																colIndex === 0 ? "w-32" : "w-16",
+																colIndex === 5 ? "w-16 h-24" : "",
+															)}
+														/>
+													</TableCell>
+												);
+											})}
+										</TableRow>
+									);
+								})
+							: table.getRowModel().rows.map((row) => (
+									<TableRow key={row.id}>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id}>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
 								))}
-							</TableRow>
-						))}
 					</TableBody>
 				</Table>
 			</div>
@@ -176,19 +205,20 @@ function BasicMoviesTable({
 				<Button
 					variant="outline"
 					onClick={() => table.previousPage()}
-					disabled={!table.getCanPreviousPage()}
+					disabled={isLoading || !table.getCanPreviousPage()}
 					className="px-2 py-1"
 				>
 					← Previous
 				</Button>
 				<span className="text-sm text-muted-foreground">
 					Page {pagination.pageIndex + 1} of {table.getPageCount() || 1}{" "}
-					(approx. {(pageCount * PER_PAGE).toLocaleString()} results)
+					{!isLoading &&
+						`(approx. ${(pageCount * PER_PAGE).toLocaleString()} results)`}
 				</span>
 				<Button
 					variant="outline"
 					onClick={() => table.nextPage()}
-					disabled={!table.getCanNextPage()}
+					disabled={isLoading || !table.getCanNextPage()}
 					className="px-2 py-1"
 				>
 					Next →
@@ -203,7 +233,7 @@ export function MoviesTable() {
 	const { query, genre, page } = routeApi.useSearch();
 	const { getMovieFetchOptions } = routeApi.useRouteContext();
 
-	const { data } = useQuery(
+	const { data, isLoading } = useQuery(
 		getMovieFetchOptions({ query, genre: genre || "", page }),
 	);
 
@@ -233,6 +263,7 @@ export function MoviesTable() {
 			pagination={pagination}
 			pageCount={paginationInfo?.totalPages ?? -1}
 			onPaginationChange={handlePageChange}
+			isLoading={isLoading}
 		/>
 	);
 }
