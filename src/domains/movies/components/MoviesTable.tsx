@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import {
 	type PaginationState,
@@ -8,8 +8,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { readFragment } from "gql.tada";
-import { useMemo } from "react";
+import { type FragmentOf, type ResultOf, readFragment } from "gql.tada";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -20,11 +19,15 @@ import {
 	TableHeader,
 	TableRow,
 } from "~/components/ui/table";
-import { MOVIE_FIELDS, type MovieFields } from "~/domains/movies/data/movies";
+import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
+import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
 
 const PER_PAGE = 10;
 
-const columnHelper = createColumnHelper<MovieFields>();
+type MovieFieldsFragment = FragmentOf<typeof BaseMovieFields>;
+type MovieFieldsData = ResultOf<typeof BaseMovieFields>;
+
+const columnHelper = createColumnHelper<MovieFieldsData>();
 
 const routeApi = getRouteApi("/");
 function formatDuration(duration: string) {
@@ -118,7 +121,7 @@ function BasicMoviesTable({
 	pageCount,
 	onPaginationChange,
 }: {
-	movies: MovieFields[];
+	movies: MovieFieldsFragment[];
 	pagination: PaginationState;
 	pageCount: number;
 	onPaginationChange: (updater: Updater<PaginationState>) => void;
@@ -126,7 +129,7 @@ function BasicMoviesTable({
 	const table = useReactTable({
 		pageCount,
 		columns,
-		data: movies,
+		data: movies.map((movie) => readFragment(BaseMovieFields, movie)),
 		getCoreRowModel: getCoreRowModel(),
 		state: {
 			pagination,
@@ -201,13 +204,14 @@ export function MoviesTable() {
 		queryOptions: { getMovieFetchOptions },
 	} = routeApi.useRouteContext();
 
-	const { data } = useSuspenseQuery(
+	const { data } = useQuery(
 		getMovieFetchOptions({ query, genre: genre || "", page }),
 	);
-	const movies = useMemo(
-		() =>
-			data.movies?.nodes?.map((node) => readFragment(MOVIE_FIELDS, node)) ?? [],
-		[data.movies],
+
+	const movies = data?.movies?.nodes ?? [];
+	const paginationInfo = readFragment(
+		MoviePaginationFields,
+		data?.movies?.pagination,
 	);
 
 	const pagination = {
@@ -228,7 +232,7 @@ export function MoviesTable() {
 		<BasicMoviesTable
 			movies={movies}
 			pagination={pagination}
-			pageCount={data.movies?.pagination?.totalPages ?? -1}
+			pageCount={paginationInfo?.totalPages ?? -1}
 			onPaginationChange={handlePageChange}
 		/>
 	);

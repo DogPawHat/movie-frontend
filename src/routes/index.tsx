@@ -1,12 +1,46 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { graphql } from "gql.tada";
 import { Suspense } from "react";
 import * as v from "valibot";
 
 import { MovieSearchBar } from "~/domains/movies/components/MovieSearchBar";
 import { MoviesTable } from "~/domains/movies/components/MoviesTable";
-import { GET_GENRES } from "~/domains/movies/data/genre";
-import { GET_MOVIES_SEARCH } from "~/domains/movies/data/movies";
+import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
+import { GenreFields } from "~/domains/movies/fragments/genre";
+import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
+
+export const GetGenres = graphql(
+	`
+  query GetGenres {
+    genres(pagination: { perPage: 100 }) {
+      nodes {
+        ...GenreFields
+      }
+    }
+  }
+`,
+	[GenreFields],
+);
+
+export const GetMoviesSearch = graphql(
+	`
+  query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
+    movies(
+      where: { search: $search, genre: $genre }
+      pagination: { perPage: 10, page: $page }
+    ) {
+      nodes {
+        ...BaseMovieFields
+      }
+      pagination {
+        ...MoviePaginationFields
+      }
+    }
+  }
+`,
+	[BaseMovieFields, MoviePaginationFields],
+);
 
 const queryParamsSchema = v.object({
 	query: v.optional(v.string(), ""),
@@ -31,7 +65,7 @@ export const Route = createFileRoute("/")({
 				queryKey: ["movies", variables],
 				queryFn: () =>
 					graphqlClient.request({
-						document: GET_MOVIES_SEARCH,
+						document: GetMoviesSearch,
 						variables: {
 							search: variables.query,
 							genre: variables.genre || undefined,
@@ -43,7 +77,7 @@ export const Route = createFileRoute("/")({
 		const getGenreFetchOptions = () =>
 			queryOptions({
 				queryKey: ["genres"],
-				queryFn: () => graphqlClient.request(GET_GENRES),
+				queryFn: () => graphqlClient.request(GetGenres),
 			});
 
 		return { queryOptions: { getMovieFetchOptions, getGenreFetchOptions } };

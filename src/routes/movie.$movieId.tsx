@@ -1,10 +1,20 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { readFragment } from "gql.tada";
-import {
-	BASE_MOVIE_FIELDS,
-	GET_FULL_MOVIE,
-} from "~/domains/movies/data/movies";
+import { graphql, readFragment } from "gql.tada";
+import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
+import { FullMovieFields } from "~/domains/movies/fragments/full-movie";
+
+const GetFullMovie = graphql(
+	`
+  query GetFullMovie($id: ID!) {
+    movie(id: $id) {
+      ...BaseMovieFields
+      ...FullMovieFields
+    }
+  }
+`,
+	[BaseMovieFields, FullMovieFields],
+);
 
 export const Route = createFileRoute("/movie/$movieId")({
 	context: ({ context: { graphqlClient } }) => {
@@ -13,7 +23,7 @@ export const Route = createFileRoute("/movie/$movieId")({
 				queryKey: ["movie", movieId],
 				queryFn: () =>
 					graphqlClient.request({
-						document: GET_FULL_MOVIE,
+						document: GetFullMovie,
 						variables: {
 							id: movieId,
 						},
@@ -38,7 +48,7 @@ function MovieRouteComponent() {
 	const { getFullMovieOptions } = Route.useRouteContext();
 	const { data } = useSuspenseQuery(getFullMovieOptions(movieId));
 
-	const basicMovieFields = readFragment(BASE_MOVIE_FIELDS, data.movie);
+	const basicMovieFields = readFragment(BaseMovieFields, data.movie);
 
 	return (
 		<div className="container mx-auto py-8 px-4">

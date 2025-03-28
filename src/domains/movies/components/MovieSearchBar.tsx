@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
+import { type FragmentOf, readFragment } from "gql.tada";
 import { Search } from "lucide-react";
 import { useState } from "react";
 
@@ -12,6 +13,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "~/components/ui/select";
+import { GenreFields } from "~/domains/movies/fragments/genre";
 
 const routeApi = getRouteApi("/");
 
@@ -52,9 +54,11 @@ function GenreSelector({
 	updateGenre,
 }: {
 	genre: string;
-	genres: Array<{ id: string; title: string }>;
+	genres: Array<FragmentOf<typeof GenreFields>>;
 	updateGenre: (genre: string) => void;
 }) {
+	const mappedGenres = readFragment(GenreFields, genres);
+
 	return (
 		<div className="flex items-center gap-2">
 			<span className="text-sm font-medium">Genre:</span>
@@ -64,11 +68,15 @@ function GenreSelector({
 				</SelectTrigger>
 				<SelectContent>
 					<SelectItem value="all">All Genres</SelectItem>
-					{genres.map((genre) => (
-						<SelectItem key={genre.id} value={genre.title}>
-							{genre.title}
-						</SelectItem>
-					))}
+					{mappedGenres.map((genre) => {
+						if (!genre.title) return null;
+
+						return (
+							<SelectItem key={genre.id} value={genre.title}>
+								{genre.title}
+							</SelectItem>
+						);
+					})}
 				</SelectContent>
 			</Select>
 		</div>
@@ -82,8 +90,8 @@ export function MovieSearchBar() {
 		queryOptions: { getGenreFetchOptions },
 	} = routeApi.useRouteContext();
 
-	const { data: genreData } = useQuery(getGenreFetchOptions());
-	const genres = genreData?.genres?.nodes || [];
+	const { data } = useQuery(getGenreFetchOptions());
+	const genres = data?.genres?.nodes || [];
 
 	const updateQuery = (newQuery: string) => {
 		navigate({ search: { query: newQuery, genre, page: 0 } });
@@ -108,10 +116,7 @@ export function MovieSearchBar() {
 
 			<GenreSelector
 				genre={genre || ""}
-				genres={genres.map((genre) => ({
-					id: genre.id || "",
-					title: genre.title || "",
-				}))}
+				genres={genres}
 				updateGenre={updateGenre}
 			/>
 
