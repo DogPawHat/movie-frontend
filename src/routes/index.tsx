@@ -8,7 +8,7 @@ import { MoviesTable } from "~/domains/movies/components/MoviesTable";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { GenreFields } from "~/domains/movies/fragments/genre";
 import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
-
+import { PER_PAGE } from "~/lib/utils";
 export const GetGenres = graphql(
 	`
   query GetGenres {
@@ -27,7 +27,7 @@ export const GetMoviesSearch = graphql(
   query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
     movies(
       where: { search: $search, genre: $genre }
-      pagination: { perPage: 5, page: $page }
+      pagination: { perPage: ${PER_PAGE}, page: $page }
     ) {
       nodes {
         ...BaseMovieFields
@@ -41,6 +41,7 @@ export const GetMoviesSearch = graphql(
 	[BaseMovieFields, MoviePaginationFields],
 );
 
+// using valibot to validate the search params
 const queryParamsSchema = v.object({
 	query: v.optional(v.fallback(v.string(), ""), ""),
 	genre: v.optional(v.fallback(v.string(), ""), ""),
@@ -50,11 +51,16 @@ const queryParamsSchema = v.object({
 export const Route = createFileRoute("/")({
 	validateSearch: queryParamsSchema,
 	loaderDeps: ({ search }) => ({
+		/** Search term used to narrow down the movies */
 		query: search.query,
+		/** Page number used to paginate the movies */
 		page: search.page,
+		/** Genre used to filter the movies (exact match) */
 		genre: search.genre,
 	}),
 	context: ({ context: { graphqlClient } }) => {
+		// Need to create the query options here were we have access to the graphql client
+		// We'll access this in the loader and also in the components via 'useRouteContext'
 		const getMovieFetchOptions = (variables: {
 			query: string;
 			genre: string;
@@ -77,6 +83,9 @@ export const Route = createFileRoute("/")({
 			queryOptions({
 				queryKey: ["genres"],
 				queryFn: () => graphqlClient.request(GetGenres),
+				// We never make changes to this query and the list wil alway be the same
+				staleTime: 60 * 60 * 1, // 1 hours
+				gcTime: 60 * 60 * 1, // 1 hours
 			});
 
 		return { getMovieFetchOptions, getGenreFetchOptions };
@@ -85,8 +94,11 @@ export const Route = createFileRoute("/")({
 		context: { getMovieFetchOptions, getGenreFetchOptions, queryClient },
 		deps: { query, page, genre },
 	}) => {
-		queryClient.fetchQuery(getMovieFetchOptions({ query, page, genre }));
-		// await queryClient.ensureQueryData(getGenreFetchOptions());
+		// Moves are non critical data so we'll fetch them in a non blocking way
+		queryClient.prefetchQuery(getMovieFetchOptions({ query, page, genre }));
+
+		// Genres are critical data so we'll fetch them in a blocking way
+		await queryClient.ensureQueryData(getGenreFetchOptions());
 	},
 	component: Movies,
 });

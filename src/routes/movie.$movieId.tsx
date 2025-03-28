@@ -1,7 +1,7 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { graphql, readFragment } from "gql.tada";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
@@ -18,21 +18,6 @@ const GetFullMovie = graphql(
 `,
 	[BaseMovieFields, FullMovieFields],
 );
-
-function formatDuration(duration: string | null) {
-	if (!duration) return "Unknown duration";
-
-	// Parse ISO 8601 duration format (e.g., PT2H14M)
-	const hoursMatch = duration.match(/(\d+)H/);
-	const minutesMatch = duration.match(/(\d+)M/);
-
-	const hours = hoursMatch ? Number.parseInt(hoursMatch[1] || "0", 10) : 0;
-	const minutes = minutesMatch
-		? Number.parseInt(minutesMatch[1] || "0", 10)
-		: 0;
-
-	return `${hours}h ${minutes}m`;
-}
 
 function formatDate(dateStr: string | null) {
 	if (!dateStr) return "Unknown date";
@@ -169,6 +154,9 @@ function MovieDetailContent() {
 	const { movieId } = Route.useParams();
 	const { getFullMovieOptions } = Route.useRouteContext();
 	const { data } = useSuspenseQuery(getFullMovieOptions(movieId));
+	const [posterErrorState, setPosterErrorState] = useState<
+		"error" | "loading" | "success"
+	>("loading");
 
 	const baseMovie = readFragment(BaseMovieFields, data.movie);
 	const fullMovie = readFragment(FullMovieFields, data.movie);
@@ -200,11 +188,13 @@ function MovieDetailContent() {
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 				{/* Movie poster column */}
 				<div className="flex justify-center md:justify-start">
-					{baseMovie.posterUrl ? (
+					{baseMovie.posterUrl && posterErrorState !== "error" ? (
 						<img
 							src={baseMovie.posterUrl}
 							alt={baseMovie.title ?? "Movie poster"}
 							className="rounded-lg shadow-lg h-auto max-w-full md:max-w-xs"
+							onError={() => setPosterErrorState("error")}
+							onLoad={() => setPosterErrorState("success")}
 						/>
 					) : (
 						<div className="flex h-80 w-56 items-center justify-center rounded-lg bg-muted">

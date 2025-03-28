@@ -23,8 +23,7 @@ import {
 } from "~/components/ui/table";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
-
-const PER_PAGE = 5;
+import { PER_PAGE } from "~/lib/utils";
 
 type MovieFieldsFragment = FragmentOf<typeof BaseMovieFields>;
 type MovieFieldsData = ResultOf<typeof BaseMovieFields>;
@@ -32,6 +31,7 @@ type MovieFieldsData = ResultOf<typeof BaseMovieFields>;
 const columnHelper = createColumnHelper<MovieFieldsData>();
 
 const routeApi = getRouteApi("/");
+
 function formatDuration(duration: string) {
 	// Parse ISO 8601 duration format (e.g., PT2H14M)
 	const hoursMatch = duration.match(/(\d+)H/);
@@ -45,7 +45,6 @@ function formatDuration(duration: string) {
 	return `${hours}h ${minutes}m`;
 }
 
-// Export columns for use in MoviesTable
 const columns = [
 	columnHelper.accessor("title", {
 		header: "Title",
@@ -102,6 +101,7 @@ const columns = [
 					params={{ movieId: row.original.id as string }}
 					className="hover:opacity-80 transition-opacity"
 				>
+					{/* Some of the posterurl 404, so we need a fallback */}
 					{posterUrl && errorState !== "error" ? (
 						<img
 							src={posterUrl}
@@ -232,7 +232,7 @@ function BasicMoviesTable({
 				</Table>
 			</div>
 
-			{/* Pagination controls - now outside the table border */}
+			{/* Pagination controls  */}
 			<div className="flex items-center justify-center gap-2 py-4">
 				<Button
 					variant="outline"
@@ -304,6 +304,7 @@ export function MoviesTable() {
 		}
 	};
 
+	// When the user hovers over the pagination buttons prefetch the next/previous page
 	const preloadPreviousPage = useCallback(async () => {
 		await queryClient.prefetchQuery({
 			...getMovieFetchOptions({

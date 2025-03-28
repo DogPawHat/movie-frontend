@@ -14,7 +14,10 @@ const TokenReturnSchema = v.object({
 	token: v.string(),
 });
 
-// Fetch and store the auth token on server and return to client
+// Fetch and store the auth token in a Tanstack Start server function and return to client
+// This allows us to store the token in the a secure cookie
+// I generally prefer cookie based auth over localStorage when possible
+// Obviously overkill in this example given the auth endpoint itself is not protected
 const getAuthToken = createServerFn({ method: "GET" }).handler(async () => {
 	const maybeToken = getCookie("api-auth-token");
 
@@ -49,8 +52,10 @@ const getAuthToken = createServerFn({ method: "GET" }).handler(async () => {
 
 export function createRouter() {
 	const queryClient = new QueryClient();
+	// only fetch the token into memory once
 	const tokenPromise = getAuthToken();
 
+	// add the token to the request headers
 	const requestMiddleware: RequestMiddleware = async (request) => {
 		return {
 			...request,
@@ -62,6 +67,7 @@ export function createRouter() {
 		};
 	};
 
+	// create the graphql client
 	const graphqlClient = new GraphQLClient(
 		`${env.VITE_PUBLIC_API_URL}/graphql`,
 		{
@@ -69,10 +75,13 @@ export function createRouter() {
 		},
 	);
 
+	// create the router
 	const router = createTanStackRouter({
 		routeTree,
 		context: {
+			/** Tanstack Query Client */
 			queryClient,
+			/** graphql request Client with auth middleware */
 			graphqlClient,
 		},
 		defaultPreload: "intent",

@@ -2,6 +2,9 @@ import { createMiddleware } from "@tanstack/react-start";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+// Say no to magic numbers kids
+export const PER_PAGE = 5;
+
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
@@ -45,3 +48,18 @@ export const logMiddleware = createMiddleware()
 
 		return res;
 	});
+
+export function formatDuration(duration: string | null) {
+	if (!duration) return "Unknown duration";
+
+	// Parse ISO 8601 duration format (e.g., PT2H14M)
+	const hoursMatch = duration.match(/(\d+)H/);
+	const minutesMatch = duration.match(/(\d+)M/);
+
+	const hours = hoursMatch ? Number.parseInt(hoursMatch[1] || "0", 10) : 0;
+	const minutes = minutesMatch
+		? Number.parseInt(minutesMatch[1] || "0", 10)
+		: 0;
+
+	return `${hours}h ${minutes}m`;
+}

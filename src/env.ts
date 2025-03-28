@@ -1,6 +1,7 @@
 import { createEnv } from "@t3-oss/env-core";
 import * as v from "valibot";
 
+// using this to validate env vars in a typesafe way
 export const env = createEnv({
 	/**
 	 * The prefix that client-side variables must have. This is enforced both at

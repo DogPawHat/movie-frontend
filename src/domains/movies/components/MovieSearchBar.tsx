@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { type FragmentOf, readFragment } from "gql.tada";
 import { Search } from "lucide-react";
@@ -57,6 +57,10 @@ function GenreSelector({
 	genres: Array<FragmentOf<typeof GenreFields>>;
 	updateGenre: (genre: string) => void;
 }) {
+	// using the readFragment function to get the genres from the query data
+	// see https://gql-tada.0no.co/guides/fragment-colocation for more details
+	// find it a bit complex myself
+	// oh GraphQL
 	const mappedGenres = readFragment(GenreFields, genres);
 
 	return (
@@ -88,10 +92,15 @@ export function MovieSearchBar() {
 	const navigate = routeApi.useNavigate();
 	const { getGenreFetchOptions } = routeApi.useRouteContext();
 
-	const { data } = useQuery(getGenreFetchOptions());
-	const genres = data?.genres?.nodes || [];
+	// Suspend on cricital data
+	const { data } = useSuspenseQuery(getGenreFetchOptions());
+
+	// as an aside, this GraphQL schema has way too many nullable fields
+	// I'd like to see a more strict schema for this API
+	const genres = data.genres?.nodes || [];
 
 	const updateQuery = (newQuery: string) => {
+		// Per Tanner, query params are the OG global state manager
 		navigate({ search: { query: newQuery, genre, page: 0 } });
 	};
 
