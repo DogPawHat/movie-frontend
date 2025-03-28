@@ -128,6 +128,7 @@ function BasicMoviesTable({
 }) {
 	const table = useReactTable({
 		pageCount,
+		rowCount: 10,
 		columns,
 		data: movies.map((movie) => readFragment(BaseMovieFields, movie)),
 		getCoreRowModel: getCoreRowModel(),
@@ -200,9 +201,7 @@ function BasicMoviesTable({
 export function MoviesTable() {
 	const navigate = routeApi.useNavigate();
 	const { query, genre, page } = routeApi.useSearch();
-	const {
-		queryOptions: { getMovieFetchOptions },
-	} = routeApi.useRouteContext();
+	const { getMovieFetchOptions } = routeApi.useRouteContext();
 
 	const { data } = useQuery(
 		getMovieFetchOptions({ query, genre: genre || "", page }),
@@ -215,7 +214,7 @@ export function MoviesTable() {
 	);
 
 	const pagination = {
-		pageIndex: page,
+		pageIndex: page - 1,
 		pageSize: PER_PAGE,
 	} satisfies PaginationState;
 
@@ -224,7 +223,7 @@ export function MoviesTable() {
 			typeof updater === "function" ? updater(pagination) : updater;
 
 		if (newPagination.pageIndex !== pagination.pageIndex) {
-			navigate({ search: { query, genre, page: newPagination.pageIndex } });
+			navigate({ search: { query, genre, page: newPagination.pageIndex + 1 } });
 		}
 	};
 

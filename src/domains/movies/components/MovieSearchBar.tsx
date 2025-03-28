@@ -86,9 +86,7 @@ function GenreSelector({
 export function MovieSearchBar() {
 	const { query, genre } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
-	const {
-		queryOptions: { getGenreFetchOptions },
-	} = routeApi.useRouteContext();
+	const { getGenreFetchOptions } = routeApi.useRouteContext();
 
 	const { data } = useQuery(getGenreFetchOptions());
 	const genres = data?.genres?.nodes || [];

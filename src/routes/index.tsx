@@ -1,7 +1,6 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { graphql } from "gql.tada";
-import { Suspense } from "react";
+import { graphql, readFragment } from "gql.tada";
 import * as v from "valibot";
 
 import { MovieSearchBar } from "~/domains/movies/components/MovieSearchBar";
@@ -45,7 +44,7 @@ export const GetMoviesSearch = graphql(
 const queryParamsSchema = v.object({
 	query: v.optional(v.string(), ""),
 	genre: v.optional(v.string(), ""),
-	page: v.optional(v.number(), 0),
+	page: v.fallback(v.pipe(v.number(), v.minValue(1)), 1),
 });
 
 export const Route = createFileRoute("/")({
@@ -62,14 +61,14 @@ export const Route = createFileRoute("/")({
 			page: number;
 		}) =>
 			queryOptions({
-				queryKey: ["movies", variables],
-				queryFn: () =>
+				queryKey: ["movies", variables] as const,
+				queryFn: ({ queryKey }) =>
 					graphqlClient.request({
 						document: GetMoviesSearch,
 						variables: {
-							search: variables.query,
-							genre: variables.genre || undefined,
-							page: variables.page,
+							search: queryKey[1].query,
+							genre: queryKey[1].genre || undefined,
+							page: queryKey[1].page,
 						},
 					}),
 			});
@@ -80,31 +79,71 @@ export const Route = createFileRoute("/")({
 				queryFn: () => graphqlClient.request(GetGenres),
 			});
 
-		return { queryOptions: { getMovieFetchOptions, getGenreFetchOptions } };
+		return { getMovieFetchOptions, getGenreFetchOptions };
 	},
 	loader: async ({
-		context: {
-			queryOptions: { getMovieFetchOptions, getGenreFetchOptions },
-			queryClient,
-		},
+		context: { getMovieFetchOptions, getGenreFetchOptions, queryClient },
 		deps: { query, page, genre },
 	}) => {
-		queryClient.prefetchQuery(getMovieFetchOptions({ query, page, genre }));
-		await queryClient.ensureQueryData(getGenreFetchOptions());
+		queryClient.fetchQuery(getMovieFetchOptions({ query, page, genre }));
+		// await queryClient.ensureQueryData(getGenreFetchOptions());
 	},
 	component: Movies,
 });
 
+export const useMoviePaginationPrefetch = () => {
+	const queryClient = useQueryClient();
+	const { query, page, genre } = Route.useSearch();
+	const { getMovieFetchOptions } = Route.useRouteContext();
+
+	const currentPageOptions = getMovieFetchOptions({ query, page, genre });
+
+	const { data } = useQuery(currentPageOptions);
+	const pagination = readFragment(
+		MoviePaginationFields,
+		data?.movies?.pagination,
+	);
+
+	const nextPage = pagination?.page ? pagination.page + 1 : "__disabled";
+	const previousPage = pagination?.page ? pagination.page - 1 : "__disabled";
+
+	const hasNext =
+		nextPage !== "__disabled" && nextPage <= (pagination?.totalPages ?? -1);
+	const hasPrevious = previousPage !== "__disabled" && previousPage > 0;
+	console.log(nextPage, previousPage);
+	console.log(hasNext, hasPrevious);
+
+	if (hasPrevious) {
+		queryClient.prefetchQuery(
+			getMovieFetchOptions({
+				query,
+				page: previousPage,
+				genre,
+			}),
+		);
+	}
+
+	if (hasNext) {
+		queryClient.prefetchQuery(
+			getMovieFetchOptions({
+				query,
+				page: nextPage,
+				genre,
+			}),
+		);
+	}
+};
+
 function Movies() {
+	useMoviePaginationPrefetch();
+
 	return (
 		<div className="container mx-auto py-8 px-4">
 			<h1 className="text-3xl font-bold mb-8 text-center">Movie Search</h1>
 
 			<MovieSearchBar />
 
-			<Suspense fallback={<div>Loading...</div>}>
-				<MoviesTable />
-			</Suspense>
+			<MoviesTable />
 		</div>
 	);
 }
