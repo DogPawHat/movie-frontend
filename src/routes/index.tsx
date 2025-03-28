@@ -27,7 +27,7 @@ export const GetMoviesSearch = graphql(
   query GetMoviesSearch($search: String!, $genre: String, $page: Int! = 0) {
     movies(
       where: { search: $search, genre: $genre }
-      pagination: { perPage: 7, page: $page }
+      pagination: { perPage: 5, page: $page }
     ) {
       nodes {
         ...BaseMovieFields
