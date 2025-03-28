@@ -133,7 +133,8 @@ export function MovieSearchBar() {
 						genre: newGenre,
 						page: 1,
 					}),
-					gcTime: 30 * 1000, // 30 seconds
+					// want this to be short since you can have a lot of cache entries that are not used
+					gcTime: 15 * 1000, // 15 seconds
 				});
 			},
 			{ minQuietPeriodMs: 100, reducer: (_acc, curr: string) => curr },
