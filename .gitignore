@@ -25,5 +25,6 @@ yarn.lock
 # Local Netlify folder
 .netlify
 
-schema-secret.graphql
-.env.local
+schema.graphql
+schema.json
+.env
