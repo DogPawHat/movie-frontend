@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
+import { Link, getRouteApi } from "@tanstack/react-router";
 import {
 	type PaginationState,
 	type Updater,
@@ -44,15 +44,33 @@ function formatDuration(duration: string) {
 const columns = [
 	columnHelper.accessor("title", {
 		header: "Title",
+		cell: ({ row }) => {
+			const title = row.getValue("title") as string | null;
+
+			if (!title) return null;
+
+			return (
+				<Link
+					to="/movie/$movieId"
+					params={{ movieId: row.original.id as string }}
+					className="font-medium text-blue-600 hover:underline"
+				>
+					{title}
+				</Link>
+			);
+		},
 	}),
 	columnHelper.accessor("rating", {
-		header: "Rating",
+		header: "Age Rating",
 		cell: ({ cell }) => {
 			const value = cell.getValue();
 			// assume film is unrated if rating is not available
 			if (!value) return "NR";
 			return value;
 		},
+	}),
+	columnHelper.accessor("ratingValue", {
+		header: "Review Rating",
 	}),
 	columnHelper.accessor("duration", {
 		header: "Duration",
@@ -65,18 +83,29 @@ const columns = [
 	columnHelper.accessor("datePublished", {
 		header: "Date Published",
 	}),
-	columnHelper.display({
-		id: "poster",
+	columnHelper.accessor("posterUrl", {
 		header: "Poster",
 		cell: ({ row }) => {
-			if (!row.original.posterUrl) return null;
+			const posterUrl = row.getValue("posterUrl") as string | null;
 
 			return (
-				<img
-					src={row.original?.posterUrl}
-					alt={row.original?.title ?? ""}
-					className="w-16 h-24"
-				/>
+				<Link
+					to="/movie/$movieId"
+					params={{ movieId: row.original.id as string }}
+					className="hover:opacity-80 transition-opacity"
+				>
+					{posterUrl ? (
+						<img
+							src={posterUrl}
+							alt={`${row.getValue("title") || "Movie"} poster`}
+							className="w-16 h-auto rounded"
+						/>
+					) : (
+						<div className="w-16 h-24 bg-gray-200 rounded flex items-center justify-center">
+							<span className="text-xs text-gray-500">No image</span>
+						</div>
+					)}
+				</Link>
 			);
 		},
 	}),

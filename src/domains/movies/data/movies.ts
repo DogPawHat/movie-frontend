@@ -6,8 +6,24 @@ export const MOVIE_FIELDS = graphql(`
     title
     posterUrl
     rating
+    ratingValue
     duration
     datePublished
+  }
+`);
+
+export const FULL_MOVIE_FIELDS = graphql(`
+  fragment FullMovieFields on Movie {
+    ...MovieFields
+    summary
+    directors
+    mainActors
+    writers
+    genres {
+      id
+      title
+    }
+    
   }
 `);
 
@@ -32,4 +48,14 @@ export const GET_MOVIES_SEARCH = graphql(
   }
 `,
 	[MOVIE_FIELDS],
+);
+
+export const GET_FULL_MOVIE = graphql(
+	`
+  query GetFullMovie($id: ID!) {
+    movie(id: $id) {
+      ...FullMovieFields
+    }
+  }`,
+	[FULL_MOVIE_FIELDS],
 );
