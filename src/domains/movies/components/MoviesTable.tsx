@@ -9,6 +9,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { type FragmentOf, type ResultOf, readFragment } from "gql.tada";
+import { cn } from "~/lib/utils";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -21,7 +22,6 @@ import {
 } from "~/components/ui/table";
 import { BaseMovieFields } from "~/domains/movies/fragments/base-movie";
 import { MoviePaginationFields } from "~/domains/movies/fragments/movie-pagination";
-import { cn } from "~/lib/utils";
 
 const PER_PAGE = 7;
 
@@ -170,14 +170,26 @@ function BasicMoviesTable({
 											{columns.map((column, colIndex) => {
 												const cellId = `${rowId}-cell-${column.id || `col-${colIndex}`}`;
 												return (
-													<TableCell key={cellId}>
-														<div
-															className={cn(
-																"h-4 bg-gray-200 dark:bg-gray-700 rounded",
-																colIndex === 0 ? "w-32" : "w-16",
-																colIndex === 5 ? "w-16 h-24" : "",
-															)}
-														/>
+													<TableCell
+														key={cellId}
+														className={cn("py-2", colIndex === 5 && "py-4")}
+													>
+														{colIndex === 5 ? (
+															// Poster column
+															<div className="w-16 h-24 bg-gray-200 dark:bg-gray-700 rounded" />
+														) : colIndex === 0 ? (
+															// Title column
+															<div className="w-40 h-5 bg-gray-200 dark:bg-gray-700 rounded" />
+														) : colIndex === 3 ? (
+															// Duration column
+															<div className="w-14 h-5 bg-gray-200 dark:bg-gray-700 rounded" />
+														) : colIndex === 4 ? (
+															// Date column
+															<div className="w-28 h-5 bg-gray-200 dark:bg-gray-700 rounded" />
+														) : (
+															// Other columns
+															<div className="w-10 h-5 bg-gray-200 dark:bg-gray-700 rounded" />
+														)}
 													</TableCell>
 												);
 											})}
@@ -187,7 +199,13 @@ function BasicMoviesTable({
 							: table.getRowModel().rows.map((row) => (
 									<TableRow key={row.id}>
 										{row.getVisibleCells().map((cell) => (
-											<TableCell key={cell.id}>
+											<TableCell
+												key={cell.id}
+												className={cn(
+													"py-2",
+													cell.column.id === "posterUrl" && "py-4",
+												)}
+											>
 												{flexRender(
 													cell.column.columnDef.cell,
 													cell.getContext(),
