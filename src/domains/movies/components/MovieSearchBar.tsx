@@ -1,8 +1,9 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { type FragmentOf, readFragment } from "gql.tada";
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { funnel } from "remeda";
 
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -52,10 +53,12 @@ function GenreSelector({
 	genre,
 	genres,
 	updateGenre,
+	preloadGenre,
 }: {
 	genre: string;
 	genres: Array<FragmentOf<typeof GenreFields>>;
 	updateGenre: (genre: string) => void;
+	preloadGenre: (genre: string) => void;
 }) {
 	// using the readFragment function to get the genres from the query data
 	// see https://gql-tada.0no.co/guides/fragment-colocation for more details
@@ -76,7 +79,11 @@ function GenreSelector({
 						if (!genre.title) return null;
 
 						return (
-							<SelectItem key={genre.id} value={genre.title}>
+							<SelectItem
+								key={genre.id}
+								value={genre.title}
+								onMouseOver={() => preloadGenre(genre.title)}
+							>
 								{genre.title}
 							</SelectItem>
 						);
@@ -88,9 +95,11 @@ function GenreSelector({
 }
 
 export function MovieSearchBar() {
+	const queryClient = useQueryClient();
 	const { query, genre } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
-	const { getGenreFetchOptions } = routeApi.useRouteContext();
+	const { getGenreFetchOptions, getMovieFetchOptions } =
+		routeApi.useRouteContext();
 
 	// Suspend on cricital data
 	const { data } = useSuspenseQuery(getGenreFetchOptions());
@@ -99,23 +108,52 @@ export function MovieSearchBar() {
 	// I'd like to see a more strict schema for this API
 	const genres = data.genres?.nodes || [];
 
-	const updateQuery = (newQuery: string) => {
-		// Per Tanner, query params are the OG global state manager
-		navigate({ search: { query: newQuery, genre, page: 0 } });
-	};
+	const updateQuery = useCallback(
+		(newQuery: string) => {
+			// Per Tanner, query params are the OG global state manager
+			navigate({ search: { query: newQuery, genre, page: 1 } });
+		},
+		[navigate, genre],
+	);
 
-	const updateGenre = (newGenre: string) => {
-		if (newGenre === "all") {
-			navigate({ search: { query, genre: "", page: 0 } });
-			return;
-		}
+	const updateGenre = useCallback(
+		(newGenre: string) => {
+			navigate({ search: { query, genre: newGenre, page: 1 } });
+		},
+		[navigate, query],
+	);
 
-		navigate({ search: { query, genre: newGenre, page: 0 } });
-	};
+	// Debounce the prefetching of genres to avoid overwhelming the server
+	const preloadGenereDebouncer = useMemo(() => {
+		return funnel(
+			(newGenre: string) => {
+				queryClient.prefetchQuery({
+					...getMovieFetchOptions({
+						query,
+						genre: newGenre,
+						page: 1,
+					}),
+					gcTime: 30 * 1000, // 30 seconds
+				});
+			},
+			{ minQuietPeriodMs: 100, reducer: (_acc, curr: string) => curr },
+		);
+	}, [queryClient, getMovieFetchOptions, query]);
 
-	const resetFilters = () => {
+	const preloadGenre = useCallback(
+		(newGenre: string) => {
+			if (newGenre === "all") {
+				return;
+			}
+
+			preloadGenereDebouncer.call(newGenre);
+		},
+		[preloadGenereDebouncer],
+	);
+
+	const resetFilters = useCallback(() => {
 		navigate({ search: { query: "", genre: "", page: 0 } });
-	};
+	}, [navigate]);
 
 	return (
 		<div className="flex flex-col gap-4 mb-8 max-w-md mx-auto">
@@ -125,6 +163,7 @@ export function MovieSearchBar() {
 				genre={genre || ""}
 				genres={genres}
 				updateGenre={updateGenre}
+				preloadGenre={preloadGenre}
 			/>
 
 			<div className="flex justify-end">

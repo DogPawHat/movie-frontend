@@ -11,7 +11,7 @@ import {
 import { type FragmentOf, type ResultOf, readFragment } from "gql.tada";
 import { cn } from "~/lib/utils";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
 	Table,
@@ -272,19 +272,26 @@ export function MoviesTable() {
 		data?.movies?.pagination,
 	);
 
-	const pagination = {
-		pageIndex: page - 1,
-		pageSize: PER_PAGE,
-	} satisfies PaginationState;
+	const pagination = useMemo(() => {
+		return {
+			pageIndex: page - 1,
+			pageSize: PER_PAGE,
+		};
+	}, [page]);
 
-	const handlePageChange = (updater: Updater<PaginationState>) => {
-		const newPagination =
-			typeof updater === "function" ? updater(pagination) : updater;
+	const handlePageChange = useCallback(
+		(updater: Updater<PaginationState>) => {
+			const newPagination =
+				typeof updater === "function" ? updater(pagination) : updater;
 
-		if (newPagination.pageIndex !== pagination.pageIndex) {
-			navigate({ search: { query, genre, page: newPagination.pageIndex + 1 } });
-		}
-	};
+			if (newPagination.pageIndex !== pagination.pageIndex) {
+				navigate({
+					search: { query, genre, page: newPagination.pageIndex + 1 },
+				});
+			}
+		},
+		[navigate, query, genre, pagination],
+	);
 
 	const preloadPreviousPage = useCallback(async () => {
 		await queryClient.prefetchQuery({
